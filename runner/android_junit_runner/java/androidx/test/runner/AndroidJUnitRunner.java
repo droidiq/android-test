@@ -32,8 +32,7 @@ import androidx.test.filters.SmallTest;
 import androidx.test.internal.events.client.TestEventClient;
 import androidx.test.internal.events.client.TestEventClientArgs;
 import androidx.test.internal.events.client.TestEventClientConnectListener;
-import androidx.test.internal.platform.tracker.AnalyticsBasedUsageTracker;
-import androidx.test.internal.platform.tracker.UsageTrackerRegistry.AxtVersions;
+import androidx.test.internal.runner.ClassPathScanner;
 import androidx.test.internal.runner.RunnerArgs;
 import androidx.test.internal.runner.TestExecutor;
 import androidx.test.internal.runner.TestRequestBuilder;
@@ -46,6 +45,8 @@ import androidx.test.internal.runner.listener.SuiteAssignmentPrinter;
 import androidx.test.internal.runner.storage.RunnerFileIO;
 import androidx.test.internal.runner.storage.RunnerIO;
 import androidx.test.internal.runner.storage.RunnerTestStorageIO;
+import androidx.test.internal.runner.tracker.AnalyticsBasedUsageTracker;
+import androidx.test.internal.runner.tracker.UsageTrackerRegistry.AxtVersions;
 import androidx.test.orchestrator.callback.OrchestratorV1Connection;
 import androidx.test.runner.lifecycle.ApplicationLifecycleCallback;
 import androidx.test.runner.lifecycle.ApplicationLifecycleMonitorRegistry;
@@ -602,12 +603,7 @@ public class AndroidJUnitRunner extends MonitoringInstrumentation
     TestRequestBuilder builder = createTestRequestBuilder(this, bundleArgs);
     builder.addPathsToScan(runnerArgs.classpathToScan);
     if (runnerArgs.classpathToScan.isEmpty()) {
-      // Only scan for tests for current apk aka testContext
-      // Note that this represents a change from InstrumentationTestRunner where
-      // getTargetContext().getPackageCodePath() aka app under test was also scanned
-      // Only add the package classpath when no custom classpath is provided in order to
-      // avoid duplicate class issues.
-      builder.addPathToScan(getContext().getPackageCodePath());
+      builder.addPathsToScan(ClassPathScanner.getDefaultClasspaths(this));
     }
     builder.addFromRunnerArgs(runnerArgs);
 
