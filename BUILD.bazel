@@ -1,8 +1,7 @@
 package(default_visibility = ["//:__subpackages__"])
 
 load("//build_extensions:maven_repo.bzl", "maven_repository")
-load("//build_extensions:axt_versions.bzl", "ANDROID_SUPPORT_LIBRARY_VERSION")
-load("@gmaven_rules//:defs.bzl", "gmaven_artifact")
+load("@rules_jvm_external//:defs.bzl", "artifact")
 
 exports_files([
     "proguard_binary.cfg",
@@ -10,7 +9,7 @@ exports_files([
     "repo.bzl",
 ])
 
-# Creates maven repository release repository
+# Creates maven release repository
 maven_repository(
     name = "axt_m2repository",
     srcs = [
@@ -18,6 +17,7 @@ maven_repository(
         "//espresso/accessibility/java/androidx/test/espresso/accessibility:accessibility_checks_maven_artifact",
         "//espresso/contrib/java/androidx/test/espresso/contrib:espresso_contrib_maven_artifact",
         "//espresso/core/java/androidx/test/espresso:espresso_core_maven_artifact",
+        "//espresso/core/java/androidx/test/espresso/remote:espresso_remote_maven_artifact",
         "//espresso/idling_resource/concurrent/java/androidx/test/espresso/idling/concurrent:idling_concurrent_maven_artifact",
         "//espresso/idling_resource/java/androidx/test/espresso:espresso_idling_resource_maven_artifact",
         "//espresso/idling_resource/net/java/androidx/test/espresso/idling/net:idling_net_maven_artifact",
@@ -25,11 +25,14 @@ maven_repository(
         "//espresso/web/java/androidx/test/espresso/web:espresso_web_maven_artifact",
         "//ext/junit/java/androidx/test/ext/junit:junit_maven_artifact",
         "//ext/truth/java/androidx/test/ext/truth:truth_maven_artifact",
+        "//ktx/core/java/androidx/test/core:core_maven_artifact",
+        "//ktx/ext/junit/java/androidx/test/ext/junit:junit_maven_artifact",
         "//runner/android_junit_runner/java/androidx/test:runner_maven_artifact",
         "//runner/android_test_orchestrator/stubapp:orchestrator_release_maven_artifact",
         "//runner/monitor/java/androidx/test:monitor_maven_artifact",
         "//runner/rules/java/androidx/test:rules_maven_artifact",
         "//services:test_services_maven_artifact",
+        "//services/storage/java/androidx/test/services/storage:test_storage_maven_artifact",
     ],
 )
 
@@ -52,56 +55,76 @@ alias(
 # Support library aliases
 
 alias(
-    name = "com_android_support_appcompat_v7",
-    actual = gmaven_artifact("com.android.support:appcompat-v7:aar:" + ANDROID_SUPPORT_LIBRARY_VERSION),
+    name = "androidx_appcompat",
+    actual = artifact("androidx.appcompat:appcompat"),
 )
 
 alias(
-    name = "com_android_support_design",
-    actual = gmaven_artifact("com.android.support:design:aar:" + ANDROID_SUPPORT_LIBRARY_VERSION),
+    name = "google_android_material",
+    actual = artifact("com.google.android.material:material"),
 )
 
 alias(
-    name = "com_android_support_multidex",
-    actual = gmaven_artifact("com.android.support:multidex:aar:1.0.2"),
+    name = "androidx_multidex",
+    actual = artifact("androidx.multidex:multidex"),
 )
 
 alias(
-    name = "com_android_support_support_annotations",
-    actual = gmaven_artifact("com.android.support:support-annotations:jar:" + ANDROID_SUPPORT_LIBRARY_VERSION),
+    name = "androidx_annotation",
+    actual = artifact("androidx.annotation:annotation"),
 )
 
 alias(
-    name = "android_arch_lifecycle_common",
-    actual = gmaven_artifact("android.arch.lifecycle:common:jar:1.1.1"),
+    name = "androidx_lifecycle_common",
+    actual = artifact("androidx.lifecycle:lifecycle-common"),
 )
 
 alias(
-    name = "com_android_support_support_compat",
-    actual = gmaven_artifact("com.android.support:support-compat:aar:" + ANDROID_SUPPORT_LIBRARY_VERSION),
+    name = "androidx_core",
+    actual = artifact("androidx.core:core"),
 )
 
 alias(
-    name = "com_android_support_support_core_ui",
-    actual = gmaven_artifact("com.android.support:support-core-ui:aar:" + ANDROID_SUPPORT_LIBRARY_VERSION),
+    name = "androidx_legacy_support_core_ui",
+    actual = artifact("androidx.legacy:legacy-support-core-ui"),
 )
 
 alias(
-    name = "com_android_support_support_core_utils",
-    actual = gmaven_artifact("com.android.support:support-core-utils:aar:" + ANDROID_SUPPORT_LIBRARY_VERSION),
+    name = "androidx_legacy_support_core_utils",
+    actual = artifact("androidx.legacy:legacy-support-core-utils"),
 )
 
 alias(
-    name = "com_android_support_support_fragment",
-    actual = gmaven_artifact("com.android.support:support-fragment:aar:" + ANDROID_SUPPORT_LIBRARY_VERSION),
+    name = "androidx_fragment",
+    actual = artifact("androidx.fragment:fragment"),
 )
 
 alias(
-    name = "com_android_support_support_v4",
-    actual = gmaven_artifact("com.android.support:support-v4:aar:" + ANDROID_SUPPORT_LIBRARY_VERSION),
+    name = "androidx_legacy_support_v4",
+    actual = artifact("androidx.legacy:legacy-support-v4"),
 )
 
 alias(
-    name = "com_android_support_recyclerview_v7",
-    actual = gmaven_artifact("com.android.support:recyclerview-v7:aar:" + ANDROID_SUPPORT_LIBRARY_VERSION),
+    name = "androidx_recyclerview",
+    actual = artifact("androidx.recyclerview:recyclerview"),
+)
+
+alias(
+    name = "androidx_viewpager",
+    actual = artifact("androidx.viewpager:viewpager"),
+)
+
+alias(
+    name = "androidx_drawerlayout",
+    actual = artifact("androidx.drawerlayout:drawerlayout"),
+)
+
+alias(
+    name = "androidx_cursoradapter",
+    actual = artifact("androidx.cursoradapter:cursoradapter"),
+)
+
+alias(
+    name = "uiautomator",
+    actual = artifact("androidx.test.uiautomator:uiautomator"),
 )

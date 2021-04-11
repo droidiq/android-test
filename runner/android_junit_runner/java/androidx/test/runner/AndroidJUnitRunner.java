@@ -24,11 +24,15 @@ import android.content.Context;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Debug;
-import android.support.annotation.VisibleForTesting;
+import androidx.annotation.VisibleForTesting;
 import android.util.Log;
 import androidx.test.filters.LargeTest;
 import androidx.test.filters.MediumTest;
 import androidx.test.filters.SmallTest;
+import androidx.test.internal.events.client.TestEventClient;
+import androidx.test.internal.events.client.TestEventClientArgs;
+import androidx.test.internal.events.client.TestEventClientConnectListener;
+import androidx.test.internal.runner.ClassPathScanner;
 import androidx.test.internal.runner.RunnerArgs;
 import androidx.test.internal.runner.TestExecutor;
 import androidx.test.internal.runner.TestRequestBuilder;
@@ -38,15 +42,19 @@ import androidx.test.internal.runner.listener.DelayInjector;
 import androidx.test.internal.runner.listener.InstrumentationResultPrinter;
 import androidx.test.internal.runner.listener.LogRunListener;
 import androidx.test.internal.runner.listener.SuiteAssignmentPrinter;
+import androidx.test.internal.runner.storage.RunnerFileIO;
+import androidx.test.internal.runner.storage.RunnerIO;
+import androidx.test.internal.runner.storage.RunnerTestStorageIO;
 import androidx.test.internal.runner.tracker.AnalyticsBasedUsageTracker;
 import androidx.test.internal.runner.tracker.UsageTrackerRegistry.AxtVersions;
-import androidx.test.orchestrator.instrumentationlistener.OrchestratedInstrumentationListener;
-import androidx.test.orchestrator.instrumentationlistener.OrchestratedInstrumentationListener.OnConnectListener;
+import androidx.test.orchestrator.callback.OrchestratorV1Connection;
 import androidx.test.runner.lifecycle.ApplicationLifecycleCallback;
 import androidx.test.runner.lifecycle.ApplicationLifecycleMonitorRegistry;
 import androidx.test.runner.screenshot.ScreenCaptureProcessor;
 import androidx.test.runner.screenshot.Screenshot;
 import java.util.HashSet;
+import java.util.ServiceLoader;
+import java.util.concurrent.TimeUnit;
 import org.junit.runner.Request;
 import org.junit.runner.manipulation.Filter;
 import org.junit.runner.notification.RunListener;
@@ -68,8 +76,7 @@ import org.junit.runners.model.RunnerBuilder;
  * androidx.test.InstrumentationRegistry} if needed.
  *
  * <p>In an appropriate AndroidManifest.xml, define an instrumentation with android:name set to
- * {@link androidx.test.runner.AndroidJUnitRunner} and the appropriate android:targetPackage
- * set.
+ * {@link androidx.test.runner.AndroidJUnitRunner} and the appropriate android:targetPackage set.
  *
  * <p>
  *
@@ -120,6 +127,9 @@ import org.junit.runners.model.RunnerBuilder;
  * <p><b>Running all tests except a particular package:</b> adb shell am instrument -w -e notPackage
  * com.android.foo.bar com.android.foo/androidx.test.runner.AndroidJUnitRunner
  *
+ * <p><b>Running all tests matching a given regular expression:</b> adb shell am instrument -w -e
+ * tests_regex BarTest.* com.android.foo/androidx.test.runner.AndroidJUnitRunner
+ *
  * <p><b>To debug your tests, set a break point in your code and pass:</b> -e debug true
  *
  * <p><b>Running a specific test size i.e. annotated with {@link SmallTest} or {@link MediumTest} or
@@ -127,12 +137,15 @@ import org.junit.runners.model.RunnerBuilder;
  * com.android.foo/androidx.test.runner.AndroidJUnitRunner
  *
  * <p><b>Filter test run to tests with given annotation:</b> adb shell am instrument -w -e
- * annotation com.android.foo.MyAnnotation
- * com.android.foo/androidx.test.runner.AndroidJUnitRunner
+ * annotation com.android.foo.MyAnnotation com.android.foo/androidx.test.runner.AndroidJUnitRunner
  *
  * <p>If used with other options, the resulting test run will contain the intersection of the two
  * options. e.g. "-e size large -e annotation com.android.foo.MyAnnotation" will run only tests with
  * both the {@link LargeTest} and "com.android.foo.MyAnnotation" annotations.
+ *
+ * <p><b>Filter test run to tests <i>with all</i> annotations in a list:</b> adb shell am instrument
+ * -w -e annotation com.android.foo.MyAnnotation,com.android.foo.AnotherAnnotation
+ * com.android.foo/androidx.test.runner.AndroidJUnitRunner
  *
  * <p><b>Filter test run to tests <i>without</i> given annotation:</b> adb shell am instrument -w -e
  * notAnnotation com.android.foo.MyAnnotation
@@ -204,13 +217,19 @@ import org.junit.runners.model.RunnerBuilder;
  *
  * <p></b>Note:</b>The new order will become the default in the future.
  *
+ * <p><a
+ * href="http://junit.org/javadoc/latest/org/junit/runner/notification/RunListener.html"><code>
+ *    can also be specified via java.util.ServiceLoader metadata.
+ *
  * <p><b> To specify a custom {@link java.lang.ClassLoader} to load the test class: </b> -e
  * classLoader com.foo.CustomClassLoader
  *
  * <p><b>Set timeout (in milliseconds) that will be applied to each test:</b> -e timeout_msec 5000
  *
  * <p>Supported for both JUnit3 and JUnit4 style tests. For JUnit3 tests, this flag is the only way
- * to specify timeouts. For JUnit4 tests, this flag overrides timeouts specified via <a
+ * to specify timeouts. For JUnit4 tests, this flag is only supported when using the
+ * the {@link androidx.test.ext.junit.runners.AndroidJUnit4) runner. It overrides timeouts
+ * specified via <a
  * href="http://junit.org/javadoc/latest/org/junit/rules/Timeout.html"><code>org.junit.rules.Timeout
  * </code></a>. Please note that in JUnit4 <a
  * href="http://junit.org/javadoc/latest/org/junit/Test.html#timeout()"><code>
@@ -225,16 +244,15 @@ import org.junit.runners.model.RunnerBuilder;
  * under test for each invocation. This allows us to measure both the count of unique packages using
  * this library as well as the volume of usage.
  *
- * <p><b>(Beta)To specify a custom {@link
- * androidx.test.runner.screenshot.ScreenCaptureProcessor} to use when processing a {@link
- * androidx.test.runner.screenshot.ScreenCapture} produced by {@link
+ * <p><b>(Beta)To specify a custom {@link androidx.test.runner.screenshot.ScreenCaptureProcessor} to
+ * use when processing a {@link androidx.test.runner.screenshot.ScreenCapture} produced by {@link
  * androidx.test.runner.screenshot.Screenshot#capture}</b>: -e screenCaptureProcessors
  * com.foo.Processor,com.foo.Processor2
  *
- * <p>If no {@link androidx.test.runner.screenshot.ScreenCaptureProcessor} is provided then
- * the {@link androidx.test.runner.screenshot.BasicScreenCaptureProcessor} is used. If one or
- * more are provided the {@link androidx.test.runner.screenshot.BasicScreenCaptureProcessor}
- * is not used unless it is one of the ones provided.
+ * <p>If no {@link androidx.test.runner.screenshot.ScreenCaptureProcessor} is provided then the
+ * {@link androidx.test.runner.screenshot.BasicScreenCaptureProcessor} is used. If one or more are
+ * provided the {@link androidx.test.runner.screenshot.BasicScreenCaptureProcessor} is not used
+ * unless it is one of the ones provided.
  *
  * <p><b>(Beta) To specify a remote static method for the runner to attempt to call reflectively:
  * </b> adb shell am instrument -w -e remoteMethod com.foo.bar#init
@@ -258,54 +276,77 @@ import org.junit.runners.model.RunnerBuilder;
  *
  * Arguments specified via shell will override manifest specified arguments.
  */
-public class AndroidJUnitRunner extends MonitoringInstrumentation implements OnConnectListener {
+public class AndroidJUnitRunner extends MonitoringInstrumentation
+    implements TestEventClientConnectListener {
 
   private static final String LOG_TAG = "AndroidJUnitRunner";
 
-  private Bundle mArguments;
-  private InstrumentationResultPrinter mInstrumentationResultPrinter =
-      new InstrumentationResultPrinter();
-  private RunnerArgs mRunnerArgs;
-  private UsageTrackerFacilitator mUsageTrackerFacilitator;
-  private OrchestratedInstrumentationListener mOrchestratorListener;
+  private static final long MILLIS_TO_WAIT_FOR_TEST_FINISH = TimeUnit.SECONDS.toMillis(20);
 
+  private Bundle arguments;
+  private InstrumentationResultPrinter instrumentationResultPrinter =
+      new InstrumentationResultPrinter();
+  private RunnerArgs runnerArgs;
+  private UsageTrackerFacilitator usageTrackerFacilitator;
+  private TestEventClient testEventClient = TestEventClient.NO_OP_CLIENT;
+  private RunnerIO runnerIO = new RunnerFileIO();
+
+  /** {@inheritDoc} */
   @Override
   public void onCreate(Bundle arguments) {
-    mArguments = arguments;
-    parseRunnerArgs(mArguments);
+    super.onCreate(arguments);
+    this.arguments = arguments;
+    parseRunnerArgs(this.arguments);
 
-    if (waitForDebugger(mRunnerArgs)) {
+    if (waitForDebugger(runnerArgs)) {
       Log.i(LOG_TAG, "Waiting for debugger to connect...");
       Debug.waitForDebugger();
       Log.i(LOG_TAG, "Debugger connected.");
     }
 
     // We are only interested in tracking usage of the primary process.
-    if (isPrimaryInstrProcess(mRunnerArgs.targetProcess)) {
-      mUsageTrackerFacilitator = new UsageTrackerFacilitator(mRunnerArgs);
+    if (isPrimaryInstrProcess(runnerArgs.targetProcess)) {
+      usageTrackerFacilitator = new UsageTrackerFacilitator(runnerArgs);
     } else {
-      mUsageTrackerFacilitator = new UsageTrackerFacilitator(false);
+      usageTrackerFacilitator = new UsageTrackerFacilitator(false);
     }
 
-    super.onCreate(arguments);
-
-    for (ApplicationLifecycleCallback listener : mRunnerArgs.appListeners) {
+    for (ApplicationLifecycleCallback listener : runnerArgs.appListeners) {
       ApplicationLifecycleMonitorRegistry.getInstance().addLifecycleCallback(listener);
     }
 
-    addScreenCaptureProcessors(mRunnerArgs);
+    addScreenCaptureProcessors(runnerArgs);
 
-    if (mRunnerArgs.orchestratorService != null
-        && isPrimaryInstrProcess(mRunnerArgs.targetProcess)) {
-      // If orchestratorService is provided, and we are the primary process
-      // we await onOrchestratorConnect() before we start().
-      mOrchestratorListener = new OrchestratedInstrumentationListener(this);
-      mOrchestratorListener.connect(getContext());
+    if (isOrchestratorServiceProvided()) {
+      Log.v(LOG_TAG, "Waiting to connect to the Orchestrator service...");
     } else {
       // If no orchestration service is given, or we are not the primary process we can
       // start() immediately.
       start();
     }
+  }
+
+  /**
+   * Connects to the remote test event service if necessary, i.e. either the test discovery or test
+   * run events service is being used and this is the primary process.
+   *
+   * @return true if running in "orchestrated mode".
+   */
+  private boolean isOrchestratorServiceProvided() {
+    TestEventClientArgs args =
+        TestEventClientArgs.builder()
+            .setConnectionFactory(OrchestratorV1Connection::new)
+            .setOrchestratorService(runnerArgs.orchestratorService)
+            .setPrimaryInstProcess(isPrimaryInstrProcess(runnerArgs.targetProcess))
+            // The listTestsForOrchestrator arg is used for Orchestrator V1 connections:
+            .setTestDiscoveryRequested(runnerArgs.listTestsForOrchestrator)
+            .setTestRunEventsRequested(!runnerArgs.listTestsForOrchestrator)
+            // The testDiscoveryService and testRunEventsService args are used for Orchestrator V2:
+            .setTestDiscoveryService(runnerArgs.testDiscoveryService)
+            .setTestRunEventService(runnerArgs.testRunEventsService)
+            .build();
+    testEventClient = TestEventClient.connect(getContext(), this, args);
+    return testEventClient.isTestDiscoveryEnabled() || testEventClient.isTestRunEventsEnabled();
   }
 
   /** Checks if need to wait for debugger. */
@@ -317,10 +358,22 @@ public class AndroidJUnitRunner extends MonitoringInstrumentation implements OnC
    * Called when AndroidJUnitRunner connects to a test orchestrator, if the {@code
    * orchestratorService} parameter is set.
    *
+   * @deprecated use onTestEventClientConnect()
+   * @hide
+   */
+  @Deprecated // TODO(b/161833844): Remove onOrchestratorConnect(), use onTestEventClientConnect()
+  public void onOrchestratorConnect() {
+    onTestEventClientConnect();
+  }
+
+  /**
+   * Called when AndroidJUnitRunner connects to a test orchestrator, if the {@code
+   * orchestratorService}, {@code discoveryService} or {@code testRunEventService} parameter is set.
+   *
    * @hide
    */
   @Override
-  public void onOrchestratorConnect() {
+  public void onTestEventClientConnect() {
     start();
   }
 
@@ -333,7 +386,7 @@ public class AndroidJUnitRunner extends MonitoringInstrumentation implements OnC
    * @param arguments
    */
   private void parseRunnerArgs(Bundle arguments) {
-    mRunnerArgs = new RunnerArgs.Builder().fromManifest(this).fromBundle(this, arguments).build();
+    runnerArgs = new RunnerArgs.Builder().fromManifest(this).fromBundle(this, arguments).build();
   }
 
   /**
@@ -342,52 +395,52 @@ public class AndroidJUnitRunner extends MonitoringInstrumentation implements OnC
    * @return the Bundle object
    */
   private Bundle getArguments() {
-    return mArguments;
+    return arguments;
   }
 
   @VisibleForTesting
   InstrumentationResultPrinter getInstrumentationResultPrinter() {
-    return mInstrumentationResultPrinter;
+    return instrumentationResultPrinter;
   }
 
   @Override
   public void onStart() {
     setJsBridgeClassName("androidx.test.espresso.web.bridge.JavaScriptBridge");
     super.onStart();
+    Request testRequest = buildRequest(runnerArgs, getArguments());
 
     /*
      * The orchestrator cannot collect the list of tests as it is running in a different process
      * than the test app.  On first run, the Orchestrator will ask AJUR to list the tests
      * out that would be run for a given class parameter.  AJUR will then be successively
-     * called with whatever it passes back to the orchestratorListener.
+     * called with whatever it passes back to the orchestrator service.
      */
-    if (mRunnerArgs.listTestsForOrchestrator && isPrimaryInstrProcess(mRunnerArgs.targetProcess)) {
-      Request testRequest = buildRequest(mRunnerArgs, getArguments());
-      mOrchestratorListener.addTests(testRequest.getRunner().getDescription());
+    if (testEventClient.isTestDiscoveryEnabled()) {
+      testEventClient.addTests(testRequest.getRunner().getDescription());
       finish(Activity.RESULT_OK, new Bundle());
       return;
     }
 
-    if (mRunnerArgs.remoteMethod != null) {
+    if (runnerArgs.remoteMethod != null) {
       reflectivelyInvokeRemoteMethod(
-          mRunnerArgs.remoteMethod.testClassName, mRunnerArgs.remoteMethod.methodName);
+          runnerArgs.remoteMethod.testClassName, runnerArgs.remoteMethod.methodName);
     }
 
-    if (!isPrimaryInstrProcess(mRunnerArgs.targetProcess)) {
+    // TODO(b/162075422): using deprecated isPrimaryInstrProcess(argsProcessName) method
+    if (!isPrimaryInstrProcess(runnerArgs.targetProcess)) {
       Log.i(LOG_TAG, "Runner is idle...");
       return;
+    }
+
+    if (runnerArgs.useTestStorageService) {
+      runnerIO = new RunnerTestStorageIO();
     }
 
     Bundle results = new Bundle();
     try {
       TestExecutor.Builder executorBuilder = new TestExecutor.Builder(this);
-
-      addListeners(mRunnerArgs, executorBuilder);
-
-      Request testRequest = buildRequest(mRunnerArgs, getArguments());
-
+      addListeners(runnerArgs, executorBuilder);
       results = executorBuilder.build().execute(testRequest);
-
     } catch (RuntimeException e) {
       final String msg = "Fatal exception when running tests";
       Log.e(LOG_TAG, msg, e);
@@ -401,8 +454,8 @@ public class AndroidJUnitRunner extends MonitoringInstrumentation implements OnC
   @Override
   public void finish(int resultCode, Bundle results) {
     try {
-      mUsageTrackerFacilitator.trackUsage("AndroidJUnitRunner", AxtVersions.RUNNER_VERSION);
-      mUsageTrackerFacilitator.sendUsages();
+      usageTrackerFacilitator.trackUsage("AndroidJUnitRunner", AxtVersions.RUNNER_VERSION);
+      usageTrackerFacilitator.sendUsages();
     } catch (RuntimeException re) {
       Log.w(LOG_TAG, "Failed to send analytics.", re);
     }
@@ -427,26 +480,30 @@ public class AndroidJUnitRunner extends MonitoringInstrumentation implements OnC
       builder.addRunListener(new SuiteAssignmentPrinter());
     } else {
       builder.addRunListener(new LogRunListener());
-      if (mOrchestratorListener != null) {
-        builder.addRunListener(mOrchestratorListener);
+      if (testEventClient.isTestRunEventsEnabled()) {
+        builder.addRunListener(testEventClient.getNotificationRunListener());
       } else {
         builder.addRunListener(getInstrumentationResultPrinter());
       }
-      builder.addRunListener(
-          new ActivityFinisherRunListener(
-              this,
-              new MonitoringInstrumentation.ActivityFinisher(),
-              new Runnable() {
-                // Yes, this is terrible and weird but avoids adding a new public API
-                // outside the internal package.
-                @Override
-                public void run() {
-                  waitForActivitiesToComplete();
-                }
-              }));
+
+      if (shouldWaitForActivitiesToComplete()) {
+        builder.addRunListener(
+            new ActivityFinisherRunListener(
+                this,
+                new MonitoringInstrumentation.ActivityFinisher(),
+                new Runnable() {
+                  // Yes, this is terrible and weird but avoids adding a new public API
+                  // outside the internal package.
+                  @Override
+                  public void run() {
+                    waitForActivitiesToComplete();
+                  }
+                }));
+      }
       addDelayListener(args, builder);
       addCoverageListener(args, builder);
     }
+    addListenersFromClasspath(builder);
     addListenersFromArg(args, builder);
   }
 
@@ -454,6 +511,7 @@ public class AndroidJUnitRunner extends MonitoringInstrumentation implements OnC
     // User defined listeners go first, to guarantee running before InstrumentationResultPrinter
     // and ActivityFinisherRunListener. Delay and Coverage Listener are also moved before for the
     // same reason.
+    addListenersFromClasspath(builder);
     addListenersFromArg(args, builder);
     if (args.logOnly) {
       // Only add the listener that will report the list of tests when running in logOnly
@@ -465,23 +523,25 @@ public class AndroidJUnitRunner extends MonitoringInstrumentation implements OnC
       builder.addRunListener(new LogRunListener());
       addDelayListener(args, builder);
       addCoverageListener(args, builder);
-      if (mOrchestratorListener != null) {
-        builder.addRunListener(mOrchestratorListener);
+      if (testEventClient.isTestRunEventsEnabled()) {
+        builder.addRunListener(testEventClient.getNotificationRunListener());
       } else {
         builder.addRunListener(getInstrumentationResultPrinter());
       }
-      builder.addRunListener(
-          new ActivityFinisherRunListener(
-              this,
-              new MonitoringInstrumentation.ActivityFinisher(),
-              new Runnable() {
-                // Yes, this is terrible and weird but avoids adding a new public API
-                // outside the internal package.
-                @Override
-                public void run() {
-                  waitForActivitiesToComplete();
-                }
-              }));
+      if (shouldWaitForActivitiesToComplete()) {
+        builder.addRunListener(
+            new ActivityFinisherRunListener(
+                this,
+                new MonitoringInstrumentation.ActivityFinisher(),
+                new Runnable() {
+                  // Yes, this is terrible and weird but avoids adding a new public API
+                  // outside the internal package.
+                  @Override
+                  public void run() {
+                    waitForActivitiesToComplete();
+                  }
+                }));
+      }
     }
   }
 
@@ -492,7 +552,7 @@ public class AndroidJUnitRunner extends MonitoringInstrumentation implements OnC
 
   private void addCoverageListener(RunnerArgs args, TestExecutor.Builder builder) {
     if (args.codeCoverage) {
-      builder.addRunListener(new CoverageListener(args.codeCoveragePath));
+      builder.addRunListener(new CoverageListener(args.codeCoveragePath, runnerIO));
     }
   }
 
@@ -507,6 +567,13 @@ public class AndroidJUnitRunner extends MonitoringInstrumentation implements OnC
     }
   }
 
+  /** Load and register {@link RunListener}'s specified via {@link java.util.ServiceLoader}. */
+  private static void addListenersFromClasspath(TestExecutor.Builder builder) {
+    for (RunListener listener : ServiceLoader.load(RunListener.class)) {
+      builder.addRunListener(listener);
+    }
+  }
+
   private void addListenersFromArg(RunnerArgs args, TestExecutor.Builder builder) {
     for (RunListener listener : args.listeners) {
       builder.addRunListener(listener);
@@ -515,11 +582,17 @@ public class AndroidJUnitRunner extends MonitoringInstrumentation implements OnC
 
   @Override
   public boolean onException(Object obj, Throwable e) {
+    Log.e(LOG_TAG, "An unhandled exception was thrown by the app.");
     InstrumentationResultPrinter instResultPrinter = getInstrumentationResultPrinter();
     if (instResultPrinter != null) {
-      // report better error message back to Instrumentation results.
+      // Report better error message back to Instrumentation results.
       instResultPrinter.reportProcessCrash(e);
     }
+    if (testEventClient.isTestRunEventsEnabled()) {
+      // Report the error message back to the orchestrator.
+      testEventClient.reportProcessCrash(e, MILLIS_TO_WAIT_FOR_TEST_FINISH);
+    }
+    Log.i(LOG_TAG, "Bringing down the entire Instrumentation process.");
     return super.onException(obj, e);
   }
 
@@ -530,12 +603,7 @@ public class AndroidJUnitRunner extends MonitoringInstrumentation implements OnC
     TestRequestBuilder builder = createTestRequestBuilder(this, bundleArgs);
     builder.addPathsToScan(runnerArgs.classpathToScan);
     if (runnerArgs.classpathToScan.isEmpty()) {
-      // Only scan for tests for current apk aka testContext
-      // Note that this represents a change from InstrumentationTestRunner where
-      // getTargetContext().getPackageCodePath() aka app under test was also scanned
-      // Only add the package classpath when no custom classpath is provided in order to
-      // avoid duplicate class issues.
-      builder.addPathToScan(getContext().getPackageCodePath());
+      builder.addPathsToScan(ClassPathScanner.getDefaultClasspaths(this));
     }
     builder.addFromRunnerArgs(runnerArgs);
 
@@ -547,7 +615,7 @@ public class AndroidJUnitRunner extends MonitoringInstrumentation implements OnC
   private void registerUserTracker() {
     Context targetContext = getTargetContext();
     if (targetContext != null) {
-      mUsageTrackerFacilitator.registerUsageTracker(
+      usageTrackerFacilitator.registerUsageTracker(
           new AnalyticsBasedUsageTracker.Builder(targetContext).buildIfPossible());
     }
   }

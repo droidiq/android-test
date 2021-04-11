@@ -24,13 +24,13 @@ import static androidx.test.espresso.matcher.ViewMatchers.isRoot;
 import android.app.Instrumentation;
 import android.content.Intent;
 import android.view.View;
-import androidx.test.InstrumentationRegistry;
 import androidx.test.annotation.Beta;
 import androidx.test.espresso.NoMatchingViewException;
 import androidx.test.espresso.ViewAssertion;
 import androidx.test.espresso.intent.matcher.IntentMatchers;
 import androidx.test.internal.runner.tracker.UsageTrackerRegistry;
 import androidx.test.internal.runner.tracker.UsageTrackerRegistry.AxtVersions;
+import androidx.test.platform.app.InstrumentationRegistry;
 import androidx.test.runner.intent.IntentCallback;
 import androidx.test.runner.intent.IntentMonitor;
 import androidx.test.runner.intent.IntentMonitorRegistry;
@@ -138,7 +138,9 @@ public final class Intents {
 
   /** Clears Intents state. Must be called after each test case. */
   public static void release() {
-    defaultInstance.internalRelease();
+    if (defaultInstance != null) {
+      defaultInstance.internalRelease();
+    }
   }
 
   /**
@@ -153,7 +155,8 @@ public final class Intents {
    * @return {@link OngoingStubbing} object to set stubbed response
    */
   public static OngoingStubbing intending(Matcher<Intent> matcher) {
-    return defaultInstance.internalIntending(matcher);
+    return checkNotNull(defaultInstance, "Intents not initialized. Did you forget to call init()?")
+        .internalIntending(matcher);
   }
 
   /**
@@ -182,7 +185,9 @@ public final class Intents {
    */
   public static void intended(
       final Matcher<Intent> matcher, final VerificationMode verificationMode) {
+    checkNotNull(defaultInstance, "Intents not initialized. Did you forget to call init()?");
     Instrumentation instrumentation = InstrumentationRegistry.getInstrumentation();
+    instrumentation.waitForIdleSync();
     if (resumedActivitiesExist(instrumentation)) {
       // Running through Espresso to take advantage of its synchronization mechanism.
       onView(isRoot())
@@ -195,7 +200,6 @@ public final class Intents {
               });
     } else {
       // No activities are resumed, so we don't need Espresso's synchronization.
-      instrumentation.waitForIdleSync();
       PropogatingRunnable intendedRunnable =
           new PropogatingRunnable(
               new Runnable() {

@@ -37,6 +37,7 @@ import androidx.test.runner.lifecycle.ActivityLifecycleMonitor;
 import androidx.test.runner.lifecycle.ActivityLifecycleMonitorRegistry;
 import androidx.test.runner.lifecycle.Stage;
 import java.util.Collection;
+import java.util.Locale;
 import org.hamcrest.Matcher;
 
 /** Enables pressing KeyEvents on views. */
@@ -61,7 +62,7 @@ class KeyEventActionBase implements ViewAction {
 
   @Override
   public String getDescription() {
-    return String.format("send %s key event", this.espressoKey);
+    return String.format(Locale.ROOT, "send %s key event", this.espressoKey);
   }
 
   @Override
@@ -113,7 +114,12 @@ class KeyEventActionBase implements ViewAction {
       injected =
           controller.injectKeyEvent(
               new KeyEvent(
-                  eventTime, eventTime, KeyEvent.ACTION_UP, this.espressoKey.getKeyCode(), 0));
+                  eventTime,
+                  eventTime,
+                  KeyEvent.ACTION_UP,
+                  this.espressoKey.getKeyCode(),
+                  0,
+                  this.espressoKey.getMetaState()));
     }
 
     return injected;
@@ -130,11 +136,14 @@ class KeyEventActionBase implements ViewAction {
       // The activity transition hasn't happened yet, wait for it.
       controller.loopMainThreadForAtLeast(BACK_ACTIVITY_TRANSITION_MILLIS_DELAY);
       if (isActivityResumed(initialActivity)) {
-        Log.e(
+        Log.i(
             TAG,
             "Back was pressed but there was no Activity stage transition in "
                 + BACK_ACTIVITY_TRANSITION_MILLIS_DELAY
-                + "ms, possibly due to a delay calling super.onBackPressed() from your Activity.");
+                + "ms. Pressing back may trigger an activity stage transition if the activity is"
+                + " finished as a result. However, the activity may handle the back behavior in"
+                + " any number of other ways internally as well, such as popping the fragment back"
+                + " stack, dismissing a dialog, otherwise manually transacting fragments, etc.");
       }
     }
   }
@@ -167,7 +176,7 @@ class KeyEventActionBase implements ViewAction {
     }
 
     if (pendingForegroundActivities) {
-      Log.e(
+      Log.w(
           TAG,
           "Back was pressed and left the application in an inconsistent state even after "
               + (CLEAR_TRANSITIONING_ACTIVITIES_MILLIS_DELAY

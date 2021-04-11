@@ -19,9 +19,11 @@ package androidx.test.rule;
 import static androidx.test.internal.util.Checks.checkNotNull;
 
 import android.Manifest.permission;
-import android.support.annotation.NonNull;
-import android.support.annotation.VisibleForTesting;
+import androidx.annotation.NonNull;
+import androidx.annotation.VisibleForTesting;
 import androidx.test.annotation.Beta;
+import androidx.test.internal.platform.ServiceLoaderWrapper;
+import androidx.test.internal.platform.content.PermissionGranter;
 import androidx.test.runner.permission.PermissionRequester;
 import java.util.Arrays;
 import java.util.LinkedHashSet;
@@ -43,7 +45,7 @@ import org.junit.runners.model.Statement;
  *
  * <p>Note, this Rule is usually used to grant runtime permissions to avoid the permission dialog
  * from showing up and blocking the App's Ui. This is especially helpful for Ui-Testing to avoid
- * loosing control over the app under test.
+ * losing control over the app under test.
  *
  * <p>The requested permissions will be granted for all test methods in the test class. Use {@link
  * #grant(String...)} static factory method to request a variable number of permissions. Usage:
@@ -58,20 +60,23 @@ import org.junit.runners.model.Statement;
  * this rule will automatically grant {@link android.Manifest.permission#READ_EXTERNAL_STORAGE} when
  * {@link android.Manifest.permission#WRITE_EXTERNAL_STORAGE} is requested.
  *
+ * <p>See <a href="https://developer.android.com/training/permissions/requesting">Request App
+ * Permissions</a> for more details on runtime permissions.
+ *
  * <p><b>This API is currently in beta.</b>
  */
 @Beta
 public class GrantPermissionRule implements TestRule {
 
-  private PermissionRequester mPermissionRequester;
+  private PermissionGranter permissionGranter;
 
   private GrantPermissionRule() {
-    this(new PermissionRequester());
+    this(ServiceLoaderWrapper.loadSingleService(PermissionGranter.class, PermissionRequester::new));
   }
 
   @VisibleForTesting
-  GrantPermissionRule(@NonNull PermissionRequester permissionRequester) {
-    setPermissionRequester(permissionRequester);
+  GrantPermissionRule(@NonNull PermissionGranter permissionGranter) {
+    setPermissionGranter(permissionGranter);
   }
 
   /**
@@ -92,7 +97,7 @@ public class GrantPermissionRule implements TestRule {
 
   private void grantPermissions(String... permissions) {
     Set<String> permissionSet = satisfyPermissionDependencies(permissions);
-    mPermissionRequester.addPermissions(permissionSet.toArray(new String[permissionSet.size()]));
+    permissionGranter.addPermissions(permissionSet.toArray(new String[permissionSet.size()]));
   }
 
   @VisibleForTesting
@@ -111,22 +116,22 @@ public class GrantPermissionRule implements TestRule {
   }
 
   @VisibleForTesting
-  void setPermissionRequester(PermissionRequester permissionRequester) {
-    mPermissionRequester = checkNotNull(permissionRequester, "permissionRequester cannot be null!");
+  void setPermissionGranter(PermissionGranter permissionGranter) {
+    this.permissionGranter = checkNotNull(permissionGranter, "permissionRequester cannot be null!");
   }
 
   private class RequestPermissionStatement extends Statement {
 
-    private final Statement mBase;
+    private final Statement base;
 
     public RequestPermissionStatement(Statement base) {
-      mBase = base;
+      this.base = base;
     }
 
     @Override
     public void evaluate() throws Throwable {
-      mPermissionRequester.requestPermissions();
-      mBase.evaluate();
+      permissionGranter.requestPermissions();
+      base.evaluate();
     }
   }
 }

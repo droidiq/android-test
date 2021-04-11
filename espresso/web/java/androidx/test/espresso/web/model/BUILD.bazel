@@ -20,12 +20,12 @@ android_library(
     idl_import_root = "idls",
     idl_parcelables = glob(["idls/**"]),
     deps = [
-        "//:com_android_support_support_annotations",
+        "//:androidx_annotation",
         "//espresso/core/java/androidx/test/espresso/remote:interface",
         "//espresso/core/java/androidx/test/espresso/remote/annotation:remote_msg_annotations",
-        "@com_google_protobuf_javalite//:protobuf_java_lite",
-        "@guava//jar",
-        "@jsr305//jar",
+        "@com_google_protobuf//:protobuf_javalite",
+        "@maven//:com_google_guava_guava",
+        "@maven//:com_google_code_findbugs_jsr305",
     ],
 )
 
@@ -42,7 +42,7 @@ android_library(
         "//espresso/core/java/androidx/test/espresso/remote:reflectionUtils",
         "//espresso/core/java/androidx/test/espresso/remote:registry",
         "//espresso/web/java/androidx/test/espresso/web/proto/model:remote_web_model_atoms_proto_android_pb3",
-        "@com_google_protobuf_javalite//:protobuf_java_lite",
-        "@guava//jar",
+        "@com_google_protobuf//:protobuf_javalite",
+        "@maven//:com_google_guava_guava",
     ],
 )

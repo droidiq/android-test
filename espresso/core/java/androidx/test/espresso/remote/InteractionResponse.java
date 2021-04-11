@@ -20,9 +20,9 @@ import static androidx.test.espresso.remote.InteractionResponse.Status.Ok;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
 
-import android.support.annotation.NonNull;
-import android.support.annotation.Nullable;
-import android.support.annotation.VisibleForTesting;
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
+import androidx.annotation.VisibleForTesting;
 import android.text.TextUtils;
 import android.util.Log;
 import android.util.SparseArray;
@@ -33,6 +33,7 @@ import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.MessageLite;
 import java.util.Arrays;
 import java.util.IllegalFormatException;
+import java.util.Locale;
 
 /**
  * Encapsulates a {@link InteractionResultProto} request. Takes care of all the proto packing and
@@ -55,8 +56,8 @@ public final class InteractionResponse implements To<MessageLite> {
 
               // Get remote error if any
               RemoteError remoteError = null;
-              Error errorMsg = resultProto.getErrorMsg();
-              if (errorMsg != null) {
+              if (resultProto.hasErrorMsg()) {
+                Error errorMsg = resultProto.getErrorMsg();
                 int errorCode = errorMsg.getCode();
                 String errorDescription = errorMsg.getDescription();
                 if (RemoteError.isWellKnownError(errorCode)) {
@@ -185,7 +186,7 @@ public final class InteractionResponse implements To<MessageLite> {
       checkState(!TextUtils.isEmpty(description), "description cannot be empty!");
       if (detailedError != null) {
         try {
-          description = String.format(description, errorCode, detailedError);
+          description = String.format(Locale.ROOT, description, errorCode, detailedError);
         } catch (IllegalFormatException ife) {
           Log.w(TAG, "Cannot format remote error description: " + description);
         }

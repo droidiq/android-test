@@ -16,7 +16,6 @@
 
 package androidx.test.espresso.matcher;
 
-import static androidx.test.InstrumentationRegistry.getContext;
 import static androidx.test.espresso.matcher.ViewMatchers.hasChildCount;
 import static androidx.test.espresso.matcher.ViewMatchers.hasContentDescription;
 import static androidx.test.espresso.matcher.ViewMatchers.hasDescendant;
@@ -53,17 +52,18 @@ import static androidx.test.espresso.matcher.ViewMatchers.withSpinnerText;
 import static androidx.test.espresso.matcher.ViewMatchers.withTagKey;
 import static androidx.test.espresso.matcher.ViewMatchers.withTagValue;
 import static androidx.test.espresso.matcher.ViewMatchers.withText;
+import static androidx.test.platform.app.InstrumentationRegistry.getInstrumentation;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.not;
 import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.core.IsInstanceOf.instanceOf;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 
 import android.view.View;
 import android.view.inputmethod.EditorInfo;
 import android.widget.LinearLayout;
 import android.widget.TextView;
-import androidx.test.InstrumentationRegistry;
 import androidx.test.espresso.matcher.ViewMatchers.HasChildCountMatcher;
 import androidx.test.espresso.matcher.ViewMatchers.HasContentDescriptionMatcher;
 import androidx.test.espresso.matcher.ViewMatchers.HasDescendantMatcher;
@@ -140,10 +140,12 @@ import androidx.test.espresso.proto.matcher.ViewMatchers.WithTagValueMatcherProt
 import androidx.test.espresso.proto.matcher.ViewMatchers.WithTextMatcherProto;
 import androidx.test.espresso.remote.GenericRemoteMessage;
 import androidx.test.espresso.remote.RemoteDescriptorRegistry;
+import androidx.test.ext.junit.runners.AndroidJUnit4;
 import androidx.test.filters.SmallTest;
-import androidx.test.runner.AndroidJUnit4;
 import androidx.test.ui.app.R;
+import org.hamcrest.Description;
 import org.hamcrest.Matcher;
+import org.hamcrest.StringDescription;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -169,19 +171,21 @@ public class RemoteViewMatchersTest {
   }
 
   @Test
+  @SuppressWarnings({"unchecked"})
   public void withId_transformationFromProto() {
-    Matcher withIdMatcher = withId(R.id.testId1);
+    Matcher<View> withIdMatcher = withId(R.id.testId1);
 
     WithIdMatcherProto withIdMatcherProto =
         (WithIdMatcherProto) new GenericRemoteMessage(withIdMatcher).toProto();
     Matcher<View> withIdMatcherFromProto =
         (Matcher<View>) GenericRemoteMessage.FROM.fromProto(withIdMatcherProto);
-    withIdMatcherFromProto.equals(withIdMatcher);
+
+    assertDescriptionsEqual(withIdMatcher, withIdMatcherFromProto);
   }
 
   @Test
   public void withText_transformationToProto() {
-    TextView textView = new TextView(getContext());
+    TextView textView = new TextView(getInstrumentation().getContext());
     textView.setText(TEXT_VIEW_TEXT);
     Matcher<View> withTextMatcher = withText(is(TEXT_VIEW_TEXT));
     assertThat(textView, withTextMatcher);
@@ -192,8 +196,9 @@ public class RemoteViewMatchersTest {
   }
 
   @Test
+  @SuppressWarnings({"unchecked"})
   public void withText_transformationFromProto() {
-    TextView textView = new TextView(getContext());
+    TextView textView = new TextView(getInstrumentation().getContext());
     textView.setText(TEXT_VIEW_TEXT);
     Matcher<View> withTextMatcher = withText(is(TEXT_VIEW_TEXT));
     assertThat(textView, withTextMatcher);
@@ -214,19 +219,20 @@ public class RemoteViewMatchersTest {
   }
 
   @Test
+  @SuppressWarnings({"unchecked"})
   public void withResourceName_transformationFromProto() {
-    Matcher withResourceName = withResourceName("testId1");
+    Matcher<View> withResourceName = withResourceName("testId1");
 
     WithResourceNameMatcherProto withResourceNameMatcherProto =
         (WithResourceNameMatcherProto) new GenericRemoteMessage(withResourceName).toProto();
-    Matcher<View> withIdMatcherFromProto =
+    Matcher<View> withResourceNameFromProto =
         (Matcher<View>) GenericRemoteMessage.FROM.fromProto(withResourceNameMatcherProto);
-    withIdMatcherFromProto.equals(withResourceName);
+    assertDescriptionsEqual(withResourceName, withResourceNameFromProto);
   }
 
   @Test
   public void isAssignable_transformationToProto() {
-    TextView textView = new TextView(getContext());
+    TextView textView = new TextView(getInstrumentation().getContext());
     textView.setText(TEXT_VIEW_TEXT);
 
     Matcher<View> isAssignableFromMatcher = isAssignableFrom(TextView.class);
@@ -236,8 +242,9 @@ public class RemoteViewMatchersTest {
   }
 
   @Test
+  @SuppressWarnings({"unchecked"})
   public void isAssignable_transformationFromProto() {
-    TextView textView = new TextView(getContext());
+    TextView textView = new TextView(getInstrumentation().getContext());
     textView.setText(TEXT_VIEW_TEXT);
 
     Matcher<View> isAssignableFromMatcher = isAssignableFrom(TextView.class);
@@ -257,6 +264,7 @@ public class RemoteViewMatchersTest {
   }
 
   @Test
+  @SuppressWarnings({"unchecked"})
   public void withTagKey_transformationFromProto() {
     Matcher<View> withTagKeyMatcher = withTagKey(R.id.testId1);
 
@@ -265,7 +273,7 @@ public class RemoteViewMatchersTest {
     Matcher<View> withTagKeyMatcherFromProto =
         (Matcher<View>) GenericRemoteMessage.FROM.fromProto(withTagKeyMatcherProto);
 
-    View view = new View(InstrumentationRegistry.getContext());
+    View view = new View(getInstrumentation().getContext());
     assertThat(view, not(withTagKeyMatcherFromProto));
     view.setTag(R.id.testId1, "blah");
     assertThat(view, withTagKeyMatcherFromProto);
@@ -301,6 +309,7 @@ public class RemoteViewMatchersTest {
   }
 
   @Test
+  @SuppressWarnings({"unchecked"})
   public void isDisplayed_transformationFromProto() {
     Matcher<View> isDisplayedMatcher = isDisplayed();
 
@@ -346,6 +355,7 @@ public class RemoteViewMatchersTest {
   }
 
   @Test
+  @SuppressWarnings({"unchecked"})
   public void isEnabled_transformationFromProto() {
     Matcher<View> isEnabledMatcher = isEnabled();
 
@@ -367,6 +377,7 @@ public class RemoteViewMatchersTest {
   }
 
   @Test
+  @SuppressWarnings({"unchecked"})
   public void isFocusable_transformationFromProto() {
     Matcher<View> isFocusableMatcher = isFocusable();
 
@@ -388,6 +399,7 @@ public class RemoteViewMatchersTest {
   }
 
   @Test
+  @SuppressWarnings({"unchecked"})
   public void hasFocus_transformationFromProto() {
     Matcher<View> hasFocusMatcher = hasFocus();
 
@@ -409,6 +421,7 @@ public class RemoteViewMatchersTest {
   }
 
   @Test
+  @SuppressWarnings({"unchecked"})
   public void isSelected_transformationFromProto() {
     Matcher<View> isSelectedMatcher = isSelected();
 
@@ -430,6 +443,7 @@ public class RemoteViewMatchersTest {
   }
 
   @Test
+  @SuppressWarnings({"unchecked"})
   public void hasSibling_transformationFromProto() {
     Matcher<View> expected = withText("sibling");
     Matcher<View> hasSiblingMatcher = hasSibling(expected);
@@ -453,6 +467,7 @@ public class RemoteViewMatchersTest {
   }
 
   @Test
+  @SuppressWarnings({"unchecked"})
   public void withContentDescriptionFromId_transformationFromProto() {
     Matcher<View> withContentDescriptionMatcher = withContentDescription(123);
 
@@ -477,6 +492,7 @@ public class RemoteViewMatchersTest {
   }
 
   @Test
+  @SuppressWarnings({"unchecked"})
   public void withContentDescription_transformationFromProto() {
     Matcher<View> withContentDescriptionMatcher = withContentDescription(is("foo"));
 
@@ -499,6 +515,7 @@ public class RemoteViewMatchersTest {
   }
 
   @Test
+  @SuppressWarnings({"unchecked"})
   public void withTagValue_transformationFromProto() {
     Matcher<View> withTagValueMatcher = withTagValue(is("foo"));
 
@@ -520,6 +537,7 @@ public class RemoteViewMatchersTest {
   }
 
   @Test
+  @SuppressWarnings({"unchecked"})
   public void withCharSeq_withText_transformationFromProto() {
     Matcher<View> withCharSeqMatcher = withText(123);
 
@@ -541,6 +559,7 @@ public class RemoteViewMatchersTest {
   }
 
   @Test
+  @SuppressWarnings({"unchecked"})
   public void withCharSeq_withHint_transformationFromProto() {
     Matcher<View> withCharSeqMatcher = withHint(123);
 
@@ -562,6 +581,7 @@ public class RemoteViewMatchersTest {
   }
 
   @Test
+  @SuppressWarnings({"unchecked"})
   public void withHint_transformationFromProto() {
     Matcher<View> withHintMatcher = withHint(is("foo"));
 
@@ -584,6 +604,7 @@ public class RemoteViewMatchersTest {
   }
 
   @Test
+  @SuppressWarnings({"unchecked"})
   public void isChecked_transformationFromProto() {
     Matcher<View> withCheckBoxStateMatcher = isChecked();
 
@@ -607,6 +628,7 @@ public class RemoteViewMatchersTest {
   }
 
   @Test
+  @SuppressWarnings({"unchecked"})
   public void hasContentDescription_transformationFromProto() {
     Matcher<View> hasContentDescriptionMatcher = hasContentDescription();
 
@@ -629,6 +651,7 @@ public class RemoteViewMatchersTest {
   }
 
   @Test
+  @SuppressWarnings({"unchecked"})
   public void hasDescendant_transformationFromProto() {
     Matcher<View> hasDescendantMatcher = hasDescendant(isAssignableFrom(TextView.class));
 
@@ -650,6 +673,7 @@ public class RemoteViewMatchersTest {
   }
 
   @Test
+  @SuppressWarnings({"unchecked"})
   public void isClickable_transformationFromProto() {
     Matcher<View> isClickableMatcher = isClickable();
 
@@ -671,6 +695,7 @@ public class RemoteViewMatchersTest {
   }
 
   @Test
+  @SuppressWarnings({"unchecked"})
   public void isDescendantOfA_transformationFromProto() {
     Matcher<View> isDescendantOfAMatcher = isDescendantOfA(isAssignableFrom(LinearLayout.class));
 
@@ -693,6 +718,7 @@ public class RemoteViewMatchersTest {
   }
 
   @Test
+  @SuppressWarnings({"unchecked"})
   public void withEffectiveVisibility_transformationFromProto() {
     Matcher<View> withEffectiveVisibilityMatcher = withEffectiveVisibility(Visibility.VISIBLE);
 
@@ -715,6 +741,7 @@ public class RemoteViewMatchersTest {
   }
 
   @Test
+  @SuppressWarnings({"unchecked"})
   public void withAlpha_transformationFromProto() {
     Matcher<View> withAlphaMatcher = withAlpha(0.1f);
 
@@ -736,6 +763,7 @@ public class RemoteViewMatchersTest {
   }
 
   @Test
+  @SuppressWarnings({"unchecked"})
   public void withParent_transformationFromProto() {
     // TODO(b/33789949) change this to use TV directly
     Matcher<View> withParentMatcher = withParent(isAssignableFrom(LinearLayout.class));
@@ -758,6 +786,7 @@ public class RemoteViewMatchersTest {
   }
 
   @Test
+  @SuppressWarnings({"unchecked"})
   public void withChild_transformationFromProto() {
     // TODO(b/33789949) change this to use TV directly
     Matcher<View> withChildMatcher = withChild(isAssignableFrom(LinearLayout.class));
@@ -780,6 +809,7 @@ public class RemoteViewMatchersTest {
   }
 
   @Test
+  @SuppressWarnings({"unchecked"})
   public void hasChildCount_transformationFromProto() {
     Matcher<View> hasChildCountMatcher = hasChildCount(0);
 
@@ -802,6 +832,7 @@ public class RemoteViewMatchersTest {
   }
 
   @Test
+  @SuppressWarnings({"unchecked"})
   public void hasMinimumChildCount_transformationFromProto() {
     Matcher<View> hasMinimumChildCountMatcher = hasMinimumChildCount(0);
 
@@ -824,6 +855,7 @@ public class RemoteViewMatchersTest {
   }
 
   @Test
+  @SuppressWarnings({"unchecked"})
   public void isRoot_transformationFromProto() {
     Matcher<View> isRootMatcher = isRoot();
 
@@ -846,6 +878,7 @@ public class RemoteViewMatchersTest {
   }
 
   @Test
+  @SuppressWarnings({"unchecked"})
   public void supportsInputMethods_transformationFromProto() {
     Matcher<View> supportsInputMethodsMatcher = supportsInputMethods();
 
@@ -868,6 +901,7 @@ public class RemoteViewMatchersTest {
   }
 
   @Test
+  @SuppressWarnings({"unchecked"})
   public void hasImeAction_transformationFromProto() {
     Matcher<View> hasImeActionMatcher = hasImeAction(EditorInfo.IME_ACTION_GO);
 
@@ -889,6 +923,7 @@ public class RemoteViewMatchersTest {
   }
 
   @Test
+  @SuppressWarnings({"unchecked"})
   public void hasLinks_transformationFromProto() {
     Matcher<View> hasLinksMatcher = hasLinks();
 
@@ -910,6 +945,7 @@ public class RemoteViewMatchersTest {
   }
 
   @Test
+  @SuppressWarnings({"unchecked"})
   public void withSpinnerTextId_transformationFromProto() {
     Matcher<View> withSpinnerTextMatcher = withSpinnerText(123);
 
@@ -931,6 +967,7 @@ public class RemoteViewMatchersTest {
   }
 
   @Test
+  @SuppressWarnings({"unchecked"})
   public void withSpinnerText_transformationFromProto() {
     Matcher<View> withSpinnerTextMatcher = withSpinnerText(is("string"));
 
@@ -953,6 +990,7 @@ public class RemoteViewMatchersTest {
   }
 
   @Test
+  @SuppressWarnings({"unchecked"})
   public void isJavascriptEnabled_transformationFromProto() {
     Matcher<View> isJavascriptEnabledMatcher = isJavascriptEnabled();
 
@@ -975,6 +1013,7 @@ public class RemoteViewMatchersTest {
   }
 
   @Test
+  @SuppressWarnings({"unchecked"})
   public void hasErrorText_transformationFromProto() {
     Matcher<View> hasErrorTextMatcher = hasErrorText("test");
 
@@ -996,6 +1035,7 @@ public class RemoteViewMatchersTest {
   }
 
   @Test
+  @SuppressWarnings({"unchecked"})
   public void withInputType_transformationFromProto() {
     Matcher<View> withInputTypeMatcher = withInputType(123);
 
@@ -1017,6 +1057,7 @@ public class RemoteViewMatchersTest {
   }
 
   @Test
+  @SuppressWarnings({"unchecked"})
   public void withParentIndex_transformationFromProto() {
     Matcher<View> withParentIndexMatcher = withParentIndex(123);
 
@@ -1027,5 +1068,20 @@ public class RemoteViewMatchersTest {
 
     assertThat(withParentIndexFromProto, notNullValue());
     assertThat(withParentIndexFromProto, instanceOf(WithParentIndexMatcher.class));
+  }
+
+  // The only way to compare matchers (since they could be nested is by using their describeTo
+  // method and relying on that being descriptive enough). Since non-descriptive describeTo
+  // implementations are also considered bugs, this is a reasonable solution. It would be akin to
+  // a custom implementation of equals(Object other) which is incomplete.
+  private static void assertDescriptionsEqual(Matcher<?> expected, Matcher<?> actual) {
+    Description expectedDescription = new StringDescription();
+    Description actualDescription = new StringDescription();
+    expected.describeTo(expectedDescription);
+    actual.describeTo(actualDescription);
+    assertEquals(
+        "Check that both matchers provide the same description",
+        expectedDescription.toString(),
+        actualDescription.toString());
   }
 }

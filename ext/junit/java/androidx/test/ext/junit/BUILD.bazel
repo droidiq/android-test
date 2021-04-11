@@ -14,7 +14,10 @@ android_library(
     ),
     manifest = "AndroidManifest.xml",
     deps = [
-        "@junit//jar",
+        "//:androidx_annotation",
+        "//core",
+        "//runner/monitor",
+        "@maven//:junit_junit",
     ],
 )
 
@@ -34,19 +37,24 @@ android_library(
 # a java_library target libjunit_release_no_deps
 axt_release_lib(
     name = "junit_release",
+    keep_spec = "androidx/test/ext/junit",
+    remove_spec = "androidx/test/ext/junit/R[$$\.]",
     deps = [
         ":junit_release_lib",
     ],
 )
 
 load("//build_extensions:maven_repo.bzl", "maven_artifact")
-load("//build_extensions:axt_versions.bzl", "JUNIT_VERSION", "ANDROIDX_JUNIT_VERSION")
+load("//build_extensions:axt_versions.bzl", "CORE_VERSION", "JUNIT_VERSION", "ANDROIDX_JUNIT_VERSION", "RUNNER_VERSION", "ANDROIDX_VERSION")
 
 maven_artifact(
     name = "junit_maven_artifact",
     src = ":junit_release.aar",
     artifact_deps = [
         "junit:junit:%s" % JUNIT_VERSION,
+        "androidx.test:core:%s" % CORE_VERSION,
+        "androidx.test:monitor:%s" % RUNNER_VERSION,
+        "androidx.annotation:annotation:%s" % ANDROIDX_VERSION,
     ],
     artifact_id = "junit",
     group_id = "androidx.test.ext",

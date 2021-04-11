@@ -15,15 +15,14 @@
  */
 package androidx.test.ext.truth.view;
 
-import android.support.annotation.Nullable;
+import androidx.annotation.Nullable;
 import android.view.MotionEvent.PointerProperties;
 import com.google.common.truth.FailureMetadata;
 import com.google.common.truth.Subject;
 import com.google.common.truth.Truth;
 
 /** {@link Subject} for {@link PointerProperties} */
-public final class PointerPropertiesSubject
-    extends Subject<PointerPropertiesSubject, PointerProperties> {
+public final class PointerPropertiesSubject extends Subject {
 
   public static PointerPropertiesSubject assertThat(PointerProperties other) {
     return Truth.assertAbout(pointerProperties()).that(other);
@@ -33,21 +32,24 @@ public final class PointerPropertiesSubject
     return PointerPropertiesSubject::new;
   }
 
+  private final PointerProperties actual;
+
   private PointerPropertiesSubject(
       FailureMetadata failureMetadata, @Nullable PointerProperties pointerProperties) {
     super(failureMetadata, pointerProperties);
+    this.actual = pointerProperties;
   }
 
   public void hasId(int id) {
-    check("id").that(actual().id).isEqualTo(id);
+    check("id").that(actual.id).isEqualTo(id);
   }
 
   public void hasToolType(int toolType) {
-    check("toolType").that(actual().toolType).isEqualTo(toolType);
+    check("toolType").that(actual.toolType).isEqualTo(toolType);
   }
 
   public void isEqualTo(PointerProperties other) {
-    check("id").that(actual().id).isEqualTo(other.id);
-    check("toolType").that(actual().toolType).isEqualTo(other.toolType);
+    check("id").that(actual.id).isEqualTo(other.id);
+    check("toolType").that(actual.toolType).isEqualTo(other.toolType);
   }
 }

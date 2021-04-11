@@ -16,7 +16,7 @@
 
 package androidx.test.espresso;
 
-import static androidx.test.InstrumentationRegistry.getContext;
+import static androidx.test.platform.app.InstrumentationRegistry.getInstrumentation;
 import static com.google.common.base.Throwables.throwIfUnchecked;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.allOf;
@@ -29,9 +29,8 @@ import static org.hamcrest.Matchers.notNullValue;
 import static org.hamcrest.Matchers.nullValue;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.anyMap;
-import static org.mockito.Matchers.argThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyMap;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -44,8 +43,9 @@ import androidx.test.espresso.matcher.RootMatchers;
 import androidx.test.espresso.remote.Bindable;
 import androidx.test.espresso.remote.NoRemoteEspressoInstanceException;
 import androidx.test.espresso.remote.RemoteInteraction;
+import androidx.test.ext.junit.runners.AndroidJUnit4;
 import androidx.test.filters.SmallTest;
-import androidx.test.runner.AndroidJUnit4;
+import androidx.test.internal.platform.os.ControlledLooper;
 import androidx.test.runner.lifecycle.ActivityLifecycleMonitor;
 import androidx.test.runner.lifecycle.ActivityLifecycleMonitorRegistry;
 import com.google.common.util.concurrent.MoreExecutors;
@@ -63,6 +63,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
 import org.mockito.Mockito;
+import org.mockito.hamcrest.MockitoHamcrest;
 
 /** Unit tests for {@link ViewInteraction}. */
 @SmallTest
@@ -75,6 +76,7 @@ public class ViewInteractionTest {
   @Mock private RemoteInteraction mockRemoteInteraction;
   @Mock private IBinder iBinderMock;
   @Mock private Bindable bindableMock;
+  @Mock private ControlledLooper mockControlledLooper;
 
   private FailureHandler failureHandler;
   private Executor testExecutor = MoreExecutors.directExecutor();
@@ -86,6 +88,7 @@ public class ViewInteractionTest {
   private Matcher<View> actionConstraint;
   private AtomicReference<Matcher<Root>> rootMatcherRef;
   private AtomicReference<Boolean> needsActivity;
+
 
   private static Callable<Void> createSuccessfulListenableFutureStub() {
     return new Callable<Void>() {
@@ -100,8 +103,8 @@ public class ViewInteractionTest {
   public void setUp() throws Exception {
     initMocks(this);
     realLifecycleMonitor = ActivityLifecycleMonitorRegistry.getInstance();
-    rootView = new View(getContext());
-    targetView = new View(getContext());
+    rootView = new View(getInstrumentation().getContext());
+    targetView = new View(getInstrumentation().getContext());
     viewMatcher = is(targetView);
     actionConstraint = notNullValue(View.class);
     rootMatcherRef = new AtomicReference<>(RootMatchers.DEFAULT);
@@ -171,8 +174,8 @@ public class ViewInteractionTest {
 
   @Test
   public void verifyPerformTwiceUpdatesPreviouslyMatched() {
-    View firstView = new View(getContext());
-    View secondView = new View(getContext());
+    View firstView = new View(getInstrumentation().getContext());
+    View secondView = new View(getInstrumentation().getContext());
     initWithViewInteraction();
     when(mockViewFinder.getView()).thenReturn(firstView);
     testInteraction.perform(mockAction);
@@ -266,7 +269,7 @@ public class ViewInteractionTest {
     when(mockRemoteInteraction.createRemoteCheckCallable(
             any(Matcher.class),
             any(Matcher.class),
-            argThat(
+            MockitoHamcrest.argThat(
                 allOf(
                     hasEntry(
                         equalTo(RemoteInteraction.BUNDLE_EXECUTION_STATUS),
@@ -282,7 +285,7 @@ public class ViewInteractionTest {
   public void verifyFailingCheckWithFailingRemoteInteractionPropagatesError() {
     NoActivityResumedException noActivityResumed =
         new NoActivityResumedException(
-            "No activities in stage RESUMED. Did you t to launch the activity. "
+            "No activities in stage RESUMED. Did you forget to launch the activity. "
                 + "(test.getActivity() or similar)?");
 
     Callable<Void> failingRemoteInteraction =
@@ -301,7 +304,7 @@ public class ViewInteractionTest {
     when(mockRemoteInteraction.createRemoteCheckCallable(
             any(Matcher.class),
             any(Matcher.class),
-            argThat(
+            MockitoHamcrest.argThat(
                 allOf(
                     hasEntry(
                         equalTo(RemoteInteraction.BUNDLE_EXECUTION_STATUS),
@@ -323,7 +326,7 @@ public class ViewInteractionTest {
           .createRemoteCheckCallable(
               any(Matcher.class),
               any(Matcher.class),
-              argThat(
+              MockitoHamcrest.argThat(
                   allOf(
                       hasEntry(
                           equalTo(RemoteInteraction.BUNDLE_EXECUTION_STATUS),
@@ -344,7 +347,7 @@ public class ViewInteractionTest {
         .createRemoteCheckCallable(
             any(Matcher.class),
             any(Matcher.class),
-            argThat(
+            MockitoHamcrest.argThat(
                 allOf(
                     hasEntry(
                         equalTo(RemoteInteraction.BUNDLE_EXECUTION_STATUS),
@@ -369,7 +372,7 @@ public class ViewInteractionTest {
         .createRemotePerformCallable(
             any(Matcher.class),
             any(Matcher.class),
-            argThat(
+            MockitoHamcrest.argThat(
                 allOf(
                     hasEntry(
                         equalTo(RemoteInteraction.BUNDLE_EXECUTION_STATUS),
@@ -399,7 +402,7 @@ public class ViewInteractionTest {
         .createRemoteCheckCallable(
             any(Matcher.class),
             any(Matcher.class),
-            argThat(
+            MockitoHamcrest.argThat(
                 allOf(
                     hasEntry(
                         equalTo(RemoteInteraction.BUNDLE_EXECUTION_STATUS),
@@ -431,7 +434,8 @@ public class ViewInteractionTest {
                     10,
                     TimeUnit.SECONDS,
                     new LinkedBlockingQueue<Runnable>(),
-                    new ThreadFactoryBuilder().setNameFormat("Espresso Remote #%d").build())));
+                    new ThreadFactoryBuilder().setNameFormat("Espresso Remote #%d").build())),
+            mockControlledLooper);
   }
 
   private void initWithRunPerformWithSuccessfulRemoteInteraction() {
@@ -453,7 +457,7 @@ public class ViewInteractionTest {
     when(mockViewFinder.getView())
         .thenThrow(
             new NoActivityResumedException(
-                "No activities in stage RESUMED. Did you t to launch the activity. "
+                "No activities in stage RESUMED. Did you forget to launch the activity. "
                     + "(test.getActivity() or similar)?"));
 
     // enable remote interaction

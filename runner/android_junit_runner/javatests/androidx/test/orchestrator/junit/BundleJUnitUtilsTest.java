@@ -21,17 +21,18 @@ import static org.hamcrest.Matchers.not;
 
 import android.os.Bundle;
 import android.os.Parcel;
+import androidx.test.ext.junit.runners.AndroidJUnit4;
 import androidx.test.orchestrator.SampleJUnitTest;
+import androidx.test.services.events.internal.StackTrimmer;
 import org.junit.Test;
 import org.junit.runner.Description;
 import org.junit.runner.Result;
 import org.junit.runner.RunWith;
 import org.junit.runner.notification.Failure;
 import org.junit.runner.notification.RunListener;
-import org.robolectric.RobolectricTestRunner;
 
 /** Unit tests for {@link BundleJUnitUtils}. */
-@RunWith(RobolectricTestRunner.class)
+@RunWith(AndroidJUnit4.class)
 public class BundleJUnitUtilsTest {
 
   @Test
@@ -57,7 +58,7 @@ public class BundleJUnitUtilsTest {
         BundleJUnitUtils.getFailure(
             parcelBundle(BundleJUnitUtils.getBundleFromFailure(jUnitFailure)));
 
-    assertThat(parcelableFailure.getTrace(), is(jUnitFailure.getTrace()));
+    assertThat(parcelableFailure.getTrace(), is(StackTrimmer.getTrimmedStackTrace(jUnitFailure)));
     compareDescription(parcelableFailure.getDescription(), jUnitFailure.getDescription());
   }
 
@@ -122,7 +123,7 @@ public class BundleJUnitUtilsTest {
   }
 
   private static void compareFailure(ParcelableFailure parcelableFailure, Failure jUnitFailure) {
-    assertThat(parcelableFailure.getTrace(), is(jUnitFailure.getTrace()));
+    assertThat(parcelableFailure.getTrace(), is(StackTrimmer.getTrimmedStackTrace(jUnitFailure)));
     compareDescription(parcelableFailure.getDescription(), jUnitFailure.getDescription());
   }
 
@@ -134,6 +135,7 @@ public class BundleJUnitUtilsTest {
     parcel.setDataPosition(0);
     Bundle out = Bundle.CREATOR.createFromParcel(parcel);
 
+    out.setClassLoader(this.getClass().getClassLoader());
     // Sanity check that the robolectric shadows haven't done something tricky like give us
     // the same object back instead of a reconstructed bundle.
     assertThat(in, is(not(out)));

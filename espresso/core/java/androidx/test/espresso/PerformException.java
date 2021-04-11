@@ -18,6 +18,8 @@ package androidx.test.espresso;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
+import androidx.test.internal.platform.util.TestOutputEmitter;
+import java.util.Locale;
 
 /**
  * Indicates that an exception occurred while performing a ViewAction on the UI thread.
@@ -36,10 +38,12 @@ public final class PerformException extends RuntimeException implements Espresso
 
   private PerformException(Builder builder) {
     super(
-        String.format(MESSAGE_FORMAT, builder.actionDescription, builder.viewDescription),
+        String.format(
+            Locale.ROOT, MESSAGE_FORMAT, builder.actionDescription, builder.viewDescription),
         builder.cause);
     this.actionDescription = checkNotNull(builder.actionDescription);
     this.viewDescription = checkNotNull(builder.viewDescription);
+    TestOutputEmitter.dumpThreadStates("ThreadState-PerformException.txt");
   }
 
   public String getActionDescription() {

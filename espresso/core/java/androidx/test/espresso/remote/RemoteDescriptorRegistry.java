@@ -19,12 +19,13 @@ package androidx.test.espresso.remote;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
 
-import android.support.annotation.NonNull;
-import android.support.annotation.VisibleForTesting;
+import androidx.annotation.NonNull;
+import androidx.annotation.VisibleForTesting;
 import android.text.TextUtils;
 import android.util.Log;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
 /**
@@ -58,7 +59,7 @@ public final class RemoteDescriptorRegistry {
   private static final <K, V> void throwIfMapNotContains(
       Map<K, V> map, K key, String fmtError, Object... fmtArgs) {
     if (!map.containsKey(key)) {
-      throw new RemoteProtocolException(String.format(fmtError, fmtArgs));
+      throw new RemoteProtocolException(String.format(Locale.ROOT, fmtError, fmtArgs));
     }
   }
 
@@ -71,6 +72,7 @@ public final class RemoteDescriptorRegistry {
         Log.w(
             TAG,
             String.format(
+                Locale.ROOT,
                 "Attempted to register RemoteDescriptor for target type: %s, that "
                     + "was already registered",
                 remoteDescriptor.getInstanceType()));
@@ -89,6 +91,7 @@ public final class RemoteDescriptorRegistry {
       if (!isRegistered(remoteDescriptor)) {
         throw new IllegalStateException(
             String.format(
+                Locale.ROOT,
                 "Attempted to unregister RemoteDescriptor "
                     + "for target type: %s, that was not registered",
                 remoteDescriptor.getInstanceType()));

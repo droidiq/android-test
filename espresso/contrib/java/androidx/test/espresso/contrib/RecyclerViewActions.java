@@ -22,9 +22,9 @@ import static androidx.test.espresso.matcher.ViewMatchers.isAssignableFrom;
 import static androidx.test.espresso.matcher.ViewMatchers.isDisplayed;
 import static org.hamcrest.Matchers.allOf;
 
-import android.support.v7.widget.RecyclerView;
-import android.support.v7.widget.RecyclerView.Adapter;
-import android.support.v7.widget.RecyclerView.ViewHolder;
+import androidx.recyclerview.widget.RecyclerView;
+import androidx.recyclerview.widget.RecyclerView.Adapter;
+import androidx.recyclerview.widget.RecyclerView.ViewHolder;
 import android.util.SparseArray;
 import android.view.View;
 import android.widget.AdapterView;
@@ -285,7 +285,7 @@ public final class RecyclerViewActions {
       uiController.loopMainThreadUntilIdle();
 
       @SuppressWarnings("unchecked")
-      VH viewHolderForPosition = (VH) recyclerView.findViewHolderForPosition(position);
+      VH viewHolderForPosition = (VH) recyclerView.findViewHolderForAdapterPosition(position);
       if (null == viewHolderForPosition) {
         throw new PerformException.Builder()
             .withActionDescription(this.toString())

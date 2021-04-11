@@ -12,12 +12,11 @@ _ANDROID = "android"
 _WEAR = "wear"
 _WEAR_TESTKEYS = "wear-testkeys"
 _WEAR_LE = "wear-le"
+_WEAR_LE_GFW = "wear-le-gfw"
 _TV = "tv"
 _AUTO = "auto"
 _GO = "go"
-_JASPER = "jasper"
 _DAYDREAM = "daydream"
-_AXON = "axon"
 
 
 def _default_images(api_level, flavors, props = None):
@@ -60,15 +59,33 @@ _ALL_IMAGES = (
     _default_images(21, [_GOOGLE, _ANDROID, _WEAR, _TV]) +
     _default_images(22, [_GOOGLE, _ANDROID, _WEAR, _TV]) +
     _default_images(23, [_GOOGLE, _ANDROID, _WEAR, _TV]) +
-    _default_images(24, [_GOOGLE, _ANDROID, _WEAR, _TV, _JASPER]) +
-    _default_images(25, [_GOOGLE, _ANDROID, _WEAR, _WEAR_LE, _WEAR_TESTKEYS, _AXON]) +
+    _default_images(24, [
+        _GOOGLE,
+        _ANDROID,
+        _WEAR,
+        _TV,
+    ]) +
+    _default_images(25, [
+        _GOOGLE,
+        _ANDROID,
+        _WEAR,
+        _WEAR_LE,
+        _WEAR_TESTKEYS,
+    ]) +
     _default_images(
         26,
         [_GOOGLE, _ANDROID, _WEAR, _WEAR_LE, _AUTO, _DAYDREAM, _TV],
     ) +
-    _default_images(27, [_GOOGLE, _ANDROID, _GO, _AUTO, _DAYDREAM, _TV, _JASPER]) +
-    _default_images(28, [_GOOGLE, _AUTO, _DAYDREAM, _TV]) +
-    _default_images(29, [_GOOGLE])
+    _default_images(27, [
+        _GOOGLE,
+        _ANDROID,
+        _GO,
+        _AUTO,
+        _DAYDREAM,
+        _TV,
+    ]) +
+    _default_images(28, [_GOOGLE, _ANDROID, _AUTO, _DAYDREAM, _TV, _WEAR, _WEAR_LE, _WEAR_LE_GFW]) +
+    []  # Empty list to make stripping the last element with copybara cleaner.
 )
 
 def _api_to_images():

@@ -21,20 +21,73 @@
 
   <uses-sdk
     android:minSdkVersion="14"
-    tools:overrideLibrary="android.support.graphics.drawable, android.support.graphics.drawable.animated, androidx.test.services.speakeasy.server" />
+    tools:overrideLibrary="android.support.graphics.drawable, androidx.vectordrawable.graphics.drawable.animated, androidx.test.services.speakeasy.server, androidx.test.services.storage.provider"
+    android:targetSdkVersion="30" />
 
-    <application android:label="TestServices" android:directBootAware="true" tools:replace="android:label">
-      <service
-            android:directBootAware="true"
-            android:name="androidx.test.services.speakeasy.server.SpeakEasyService"
-            android:exported="true" >
-        </service>
+   <uses-permission android:name="android.permission.INTERACT_ACROSS_USERS" />
+   <uses-permission android:name="android.permission.ACCESS_CONTENT_PROVIDERS_EXTERNALLY" />
+   <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
+   <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
+   <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE" />
+   <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+   <uses-permission android:name="android.permission.INTERNET"/>
+   <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
 
-        <provider
-            android:directBootAware="true"
-            android:name="androidx.test.services.speakeasy.server.SpeakEasyContentProvider"
-            android:authorities="androidx_test_services.speak_easy"
-            android:grantUriPermissions="true" />
-    </application>
+   <!-- Allow query of any normal app on the device in R+ -->
+   <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES" />
+
+   <application android:label="TestServices"
+                android:directBootAware="true"
+                android:requestLegacyExternalStorage = "true"
+                android:forceQueryable="true"
+                tools:replace="android:label">
+     <service
+         android:directBootAware="true"
+         android:name="androidx.test.services.speakeasy.server.SpeakEasyService"
+         android:exported="true" >
+     </service>
+
+     <provider
+         android:directBootAware="true"
+         android:name="androidx.test.services.speakeasy.server.SpeakEasyContentProvider"
+         android:authorities="androidx_test_services.speak_easy"
+         android:exported="true"
+         android:grantUriPermissions="true" />
+    <provider
+        android:name="androidx.test.services.storage.provider.TestDataContentProvider"
+        android:authorities="androidx.test.services.storage.runfiles"
+        android:directBootAware="true"
+        android:exported="true"
+        android:grantUriPermissions="true"/>
+    <provider
+        android:name="androidx.test.services.storage.provider.TestArgsContentProvider"
+        android:authorities="androidx.test.services.storage.testargs"
+        android:directBootAware="true"
+        android:exported="true" />
+    <provider
+        android:name="androidx.test.services.storage.provider.TestOutputFilesContentProvider"
+        android:authorities="androidx.test.services.storage.outputfiles"
+        android:directBootAware="true"
+        android:exported="true"
+        android:grantUriPermissions="true" />
+    <provider
+        android:name="androidx.test.services.storage.provider.InternalUseOnlyFilesContentProvider"
+        android:authorities="androidx.test.services.storage._internal_use_files"
+        android:directBootAware="true"
+        android:exported="true"
+        android:grantUriPermissions="true" />
+    <provider
+        android:name="androidx.test.services.storage.provider.ExportTestPropertiesContentProvider"
+        android:authorities="androidx.test.services.storage.properties"
+        android:directBootAware="true"
+        android:exported="true"
+        android:grantUriPermissions="true" />
+    <provider
+        android:name="androidx.test.services.storage.provider.TestDiagnosticsContentProvider"
+        android:authorities="androidx.test.services.storage.diagnostics"
+        android:directBootAware="true"
+        android:exported="true"
+        android:grantUriPermissions="true"/>
+  </application>
 
 </manifest>

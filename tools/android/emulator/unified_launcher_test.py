@@ -118,7 +118,11 @@ class UnifiedLauncherTest(mox.MoxTestBase):
         reporter=reporter,
         mini_boot=False,
         sim_access_rules_file=None,
-        source_properties=None)
+        phone_number=None,
+        source_properties=None,
+        use_waterfall=False,
+        forward_bin=None,
+        ports_bin=None)
 
     self.mox.StubOutWithMock(unified_launcher, '_RestartDevice')
     unified_launcher._RestartDevice(mock_device,
@@ -189,7 +193,11 @@ class UnifiedLauncherTest(mox.MoxTestBase):
         reporter=reporter,
         mini_boot=False,
         sim_access_rules_file=None,
-        source_properties=None)
+        phone_number=None,
+        source_properties=None,
+        use_waterfall=False,
+        forward_bin=None,
+        ports_bin=None)
 
     self.mox.StubOutWithMock(unified_launcher, '_RestartDevice')
     unified_launcher._RestartDevice(mock_device,
@@ -256,7 +264,11 @@ class UnifiedLauncherTest(mox.MoxTestBase):
         reporter=reporter,
         mini_boot=False,
         sim_access_rules_file=None,
-        source_properties=None)
+        phone_number=None,
+        source_properties=None,
+        use_waterfall=False,
+        forward_bin=None,
+        ports_bin=None)
 
     self.mox.StubOutWithMock(unified_launcher, '_RestartDevice')
     unified_launcher._RestartDevice(mock_device, enable_display=True,
@@ -329,7 +341,11 @@ class UnifiedLauncherTest(mox.MoxTestBase):
         reporter=reporter,
         mini_boot=False,
         sim_access_rules_file=None,
-        source_properties=None)
+        phone_number=None,
+        source_properties=None,
+        use_waterfall=False,
+        forward_bin=None,
+        ports_bin=None)
 
     self.mox.StubOutWithMock(unified_launcher, '_RestartDevice')
     unified_launcher._RestartDevice(mock_device, enable_display=True,
@@ -487,7 +503,11 @@ class UnifiedLauncherTest(mox.MoxTestBase):
         android_platform=mox.IsA(emulated_device.AndroidPlatform),
         qemu_gdb_port=0,
         enable_single_step=False,
-        source_properties=None)
+        source_properties=None,
+        mini_boot=False,
+        use_waterfall=False,
+        forward_bin=None,
+        ports_bin=None)
     self.mox.StubOutWithMock(initial_boot_device, 'Configure')
     self.mox.StubOutWithMock(initial_boot_device, 'StartDevice')
     skin = 'rabbit_fur'
@@ -543,7 +563,8 @@ class UnifiedLauncherTest(mox.MoxTestBase):
         qemu_gdb_port=0,
         enable_single_step=False,
         emulator_tmp_dir=None,
-        boot_time_apks=['hello_world.apk'])
+        boot_time_apks=['hello_world.apk'],
+        mini_boot=False)
 
   def testBoot_snapshot(self):
     self.mox.StubOutClassWithMocks(emulated_device, 'EmulatedDevice')
@@ -551,7 +572,11 @@ class UnifiedLauncherTest(mox.MoxTestBase):
         android_platform=mox.IsA(emulated_device.AndroidPlatform),
         qemu_gdb_port=0,
         enable_single_step=False,
-        source_properties=None)
+        source_properties=None,
+        mini_boot=False,
+        use_waterfall=False,
+        forward_bin=None,
+        ports_bin=None)
     self.mox.StubOutWithMock(initial_boot_device, 'Configure')
     self.mox.StubOutWithMock(initial_boot_device, 'StartDevice')
     skin = 'rabbit_fur'
@@ -604,7 +629,8 @@ class UnifiedLauncherTest(mox.MoxTestBase):
         qemu_gdb_port=0,
         enable_single_step=False,
         emulator_tmp_dir=None,
-        boot_time_apks=[])
+        boot_time_apks=[],
+        mini_boot=False)
 
   def testConvertToDict(self):
     self.assertEquals(

@@ -19,16 +19,17 @@ package androidx.test.espresso.idling.net;
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.mockito.Mockito.any;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.MockitoAnnotations.initMocks;
 
-import androidx.test.InstrumentationRegistry;
 import androidx.test.espresso.IdlingResource.ResourceCallback;
+import androidx.test.ext.junit.runners.AndroidJUnit4;
 import androidx.test.filters.MediumTest;
-import androidx.test.runner.AndroidJUnit4;
+import androidx.test.platform.app.InstrumentationRegistry;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.FutureTask;
@@ -128,7 +129,7 @@ public class UriIdlingResourceTest {
   // Test helper methods
 
   private void assertHandlerCounts(int posted, int removed) {
-    verify(handler, times(posted)).postDelayed(any(Runnable.class), any(Long.class));
+    verify(handler, times(posted)).postDelayed(any(Runnable.class), anyLong());
     verify(handler, times(removed)).removeCallbacks(any(Runnable.class));
   }
 

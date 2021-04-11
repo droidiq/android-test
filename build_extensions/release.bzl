@@ -11,8 +11,10 @@ def axt_release_lib(
     proguard_library = None,
     multidex = "off",
     jarjar_rules = "//build_extensions:noJarJarRules.txt",
+    keep_spec = None,
+    remove_spec = None,
     overlapping_jars = [],
-    remove_specs = []):
+    resource_files = None):
   """Generates release artifacts for a AXT library.
 
   Resulting output will be two files:
@@ -25,11 +27,13 @@ def axt_release_lib(
     proguard_specs: Proguard to apply when building the jar
     proguard_library: Proguard to bundle with the jar
     jarjar_rules: Optional file containing jarjar rules to be applied
-    overlapping_jars: jars containing entries to be removed from the main jar. See remove_from_jar
-      docs
-    remove_specs: A list of additional items to be removed from the jar. See
-      remove_from_jar:removes documentation for format. By default all com*,
-      org*, and junit* classes will be removed.
+    keep_spec: A regex to match items to retain in the jar. This is typically the
+      root java namespace of the library.
+    remove_spec: A regex to match items to remove from the jar.
+    overlapping_jars: jars containing entries to be removed from the main jar.
+      This is useful when the library has dependencies whose java package namespaces
+      overlap with this jar. See remove_from_jar docs for more details.
+    resource_files: res files to include in library
   """
 
   # The rules here produce a final .aar artifact and jar for external release.
@@ -50,6 +54,7 @@ def axt_release_lib(
   native.android_library(
       name = "%s_initial" % name,
       manifest = "AndroidManifest.xml",
+      resource_files = resource_files,
       visibility = ["//visibility:private"],
       custom_package = custom_package,
       testonly = 1,
@@ -74,15 +79,20 @@ def axt_release_lib(
     expected_output = ":%s_all_proguard.jar" % name
 
   # Step 3. Rename classes via jarjar
+  native.java_binary(
+    name = "jarjar_bin",
+    main_class = "org.pantsbuild.jarjar.Main",
+    runtime_deps = ["@maven//:org_pantsbuild_jarjar"],
+  )
   native.genrule(
       name = "%s_jarjared" % name,
       srcs = [expected_output],
       outs = ["%s_jarjared.jar" % name],
-      cmd = ("$(location @bazel_tools//third_party/jarjar:jarjar_bin) process " +
+      cmd = ("$(location :jarjar_bin) process " +
                "$(location %s) '$<' '$@'") % jarjar_rules,
       tools = [
           jarjar_rules,
-          "@bazel_tools//third_party/jarjar:jarjar_bin",
+	  ":jarjar_bin",
       ],
   )
 
@@ -90,18 +100,9 @@ def axt_release_lib(
   remove_from_jar(
       name = "%s_no_deps" % name,
       jar = ":%s_jarjared.jar" % name,
+      keep_spec = keep_spec,
+      remove_spec = remove_spec,
       overlapping_jars = overlapping_jars,
-      removes = [
-          "*.gwt.xml",
-          "com*",
-          "junit*",
-          "org*",
-          "javax*",
-          "dagger*",
-          "jsr305_annotations*",
-          "jsr330_inject*",
-          "third_party*",
-      ] + remove_specs,
   )
 
   expected_output = ":%s_initial.aar" % name

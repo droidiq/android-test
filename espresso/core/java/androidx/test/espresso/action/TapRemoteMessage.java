@@ -17,10 +17,11 @@ package androidx.test.espresso.action;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
-import android.support.annotation.NonNull;
+import androidx.annotation.NonNull;
 import androidx.test.espresso.proto.action.ViewActions.ClickViewActionProto;
 import androidx.test.espresso.remote.EspressoRemoteMessage;
 import androidx.test.espresso.remote.ProtoUtils;
+import java.util.Locale;
 
 /**
  * {@link EspressoRemoteMessage.To} and {@link EspressoRemoteMessage.From} implementation of {@link
@@ -45,7 +46,7 @@ public final class TapRemoteMessage implements EspressoRemoteMessage.To<ClickVie
         return ClickViewActionProto.Tap.DOUBLE;
       default:
         throw new IllegalArgumentException(
-            String.format("Tap proto enum for general location: %s not found!", tap.toString()));
+            String.format(Locale.ROOT, "Tap proto enum for general location: %s not found!", tap));
     }
   }
 

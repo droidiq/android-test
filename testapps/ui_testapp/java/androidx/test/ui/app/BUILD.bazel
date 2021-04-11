@@ -15,23 +15,31 @@ android_library(
     assets_dir = "assets",
     manifest = "AndroidManifest_opensource.xml",
     resource_files = glob(["res/**"]),
-    visibility = ["//visibility:private"],
     deps = [
-        "//:com_android_support_appcompat_v7",
-        "//:com_android_support_design",
-        "//:com_android_support_recyclerview_v7",
-        "//:com_android_support_support_annotations",
-        "//:com_android_support_support_compat",
-        "//:com_android_support_support_core_ui",
-        "//:com_android_support_support_core_utils",
-        "//:com_android_support_support_fragment",
-        "@guava//jar",
+        "//:androidx_annotation",
+        "//:androidx_appcompat",
+        "//:androidx_core",
+        "//:androidx_cursoradapter",
+        "//:androidx_drawerlayout",
+        "//:androidx_fragment",
+        "//:androidx_legacy_support_core_ui",
+        "//:androidx_legacy_support_core_utils",
+        "//:androidx_recyclerview",
+        "//:androidx_viewpager",
+        "//:google_android_material",
+        "@maven//:com_google_guava_guava",
     ],
 )
 
 android_library(
     name = "lib_neverlink",
     testonly = 1,
+    # Don't export manifest. This lib is just for compile time dependency and it
+    # should never merged to other libraries manifest files.
+    exports_manifest = 0,
+    # This manifest is unused because this lib does not export the manifest but
+    # is required to make bazel happy.
+    manifest = "AndroidManifest_opensource.xml",
     # No other libraries should depend on this one
     neverlink = 1,
     exports = [":lib"],
@@ -47,6 +55,6 @@ android_binary(
     resource_files = glob(["res/**"]),
     deps = [
         ":lib",
-        "//:com_android_support_multidex",
+        "//:androidx_multidex",
     ],
 )

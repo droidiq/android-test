@@ -16,20 +16,20 @@
 
 package androidx.test.internal.runner.listener;
 
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.anyInt;
-import static org.mockito.Matchers.contains;
-import static org.mockito.Matchers.eq;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.contains;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import android.app.Instrumentation;
 import android.os.Bundle;
+import androidx.test.ext.junit.runners.AndroidJUnit4;
 import androidx.test.filters.LargeTest;
 import androidx.test.filters.MediumTest;
 import androidx.test.filters.SmallTest;
-import androidx.test.runner.AndroidJUnit4;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.Description;
@@ -59,14 +59,14 @@ public class SuiteAssignmentPrinterTest {
     public void noSizeTest() {}
   }
 
-  @Spy public SuiteAssignmentPrinter mSuiteAssignmentPrinter;
+  @Spy public SuiteAssignmentPrinter suiteAssignmentPrinter;
 
-  @Mock public Instrumentation mInstrumentation;
+  @Mock public Instrumentation instrumentation;
 
   @Before
   public void setUp() {
     MockitoAnnotations.initMocks(this);
-    mSuiteAssignmentPrinter.setInstrumentation(mInstrumentation);
+    suiteAssignmentPrinter.setInstrumentation(instrumentation);
   }
 
   @Test
@@ -75,11 +75,11 @@ public class SuiteAssignmentPrinterTest {
         Description.createTestDescription(
             SampleTestClassWithSizeAnnotations.class, "smallSizeTest");
 
-    doNothing().when(mSuiteAssignmentPrinter).sendStatus(anyInt(), any(Bundle.class));
-    mSuiteAssignmentPrinter.mTimingValid = false;
-    mSuiteAssignmentPrinter.testFinished(description);
+    doNothing().when(suiteAssignmentPrinter).sendStatus(anyInt(), any(Bundle.class));
+    suiteAssignmentPrinter.timingValid = false;
+    suiteAssignmentPrinter.testFinished(description);
 
-    verify(mSuiteAssignmentPrinter).sendString(eq("F"));
+    verify(suiteAssignmentPrinter).sendString(eq("F"));
   }
 
   @Test
@@ -89,12 +89,12 @@ public class SuiteAssignmentPrinterTest {
             SampleTestClassWithSizeAnnotations.class, "smallSizeTest");
 
     // Don't output anything in instrumentation status
-    doNothing().when(mSuiteAssignmentPrinter).sendStatus(anyInt(), any(Bundle.class));
+    doNothing().when(suiteAssignmentPrinter).sendStatus(anyInt(), any(Bundle.class));
 
-    mSuiteAssignmentPrinter.mStartTime = -1;
-    mSuiteAssignmentPrinter.testFinished(description);
+    suiteAssignmentPrinter.startTime = -1;
+    suiteAssignmentPrinter.testFinished(description);
 
-    verify(mSuiteAssignmentPrinter).sendString(eq("F"));
+    verify(suiteAssignmentPrinter).sendString(eq("F"));
   }
 
   @Test
@@ -106,16 +106,16 @@ public class SuiteAssignmentPrinterTest {
             SampleTestClassWithSizeAnnotations.class.getMethod("mediumSizeTest").getAnnotations());
 
     // Don't output anything in instrumentation status
-    doNothing().when(mSuiteAssignmentPrinter).sendStatus(anyInt(), any(Bundle.class));
+    doNothing().when(suiteAssignmentPrinter).sendStatus(anyInt(), any(Bundle.class));
     // Set end time
-    when(mSuiteAssignmentPrinter.getCurrentTimeMillis()).thenReturn(100L);
+    when(suiteAssignmentPrinter.getCurrentTimeMillis()).thenReturn(100L);
 
     // Set time for small test bucket
-    mSuiteAssignmentPrinter.mTimingValid = true;
-    mSuiteAssignmentPrinter.mStartTime = 50L;
-    mSuiteAssignmentPrinter.testFinished(description);
+    suiteAssignmentPrinter.timingValid = true;
+    suiteAssignmentPrinter.startTime = 50L;
+    suiteAssignmentPrinter.testFinished(description);
 
-    verify(mSuiteAssignmentPrinter).sendString(contains("suggested: small"));
+    verify(suiteAssignmentPrinter).sendString(contains("suggested: small"));
   }
 
   @Test
@@ -127,16 +127,16 @@ public class SuiteAssignmentPrinterTest {
             SampleTestClassWithSizeAnnotations.class.getMethod("mediumSizeTest").getAnnotations());
 
     // Don't output anything in instrumentation status
-    doNothing().when(mSuiteAssignmentPrinter).sendStatus(anyInt(), any(Bundle.class));
+    doNothing().when(suiteAssignmentPrinter).sendStatus(anyInt(), any(Bundle.class));
     // Set end time
-    when(mSuiteAssignmentPrinter.getCurrentTimeMillis()).thenReturn(1000L);
+    when(suiteAssignmentPrinter.getCurrentTimeMillis()).thenReturn(1000L);
 
     // Set time for medium test bucket < 1000ms
-    mSuiteAssignmentPrinter.mTimingValid = true;
-    mSuiteAssignmentPrinter.mStartTime = 500L;
-    mSuiteAssignmentPrinter.testFinished(description);
+    suiteAssignmentPrinter.timingValid = true;
+    suiteAssignmentPrinter.startTime = 500L;
+    suiteAssignmentPrinter.testFinished(description);
 
-    verify(mSuiteAssignmentPrinter).sendString(contains("."));
+    verify(suiteAssignmentPrinter).sendString(contains("."));
   }
 
   @Test
@@ -145,13 +145,13 @@ public class SuiteAssignmentPrinterTest {
         Description.createTestDescription(SampleTestClassWithSizeAnnotations.class, "noSizeTest");
 
     // Don't output anything in instrumentation status
-    doNothing().when(mSuiteAssignmentPrinter).sendStatus(anyInt(), any(Bundle.class));
+    doNothing().when(suiteAssignmentPrinter).sendStatus(anyInt(), any(Bundle.class));
 
     // Set time for large test bucket < 1000ms
-    mSuiteAssignmentPrinter.mTimingValid = true;
-    mSuiteAssignmentPrinter.mStartTime = 0L;
-    mSuiteAssignmentPrinter.testFinished(description);
+    suiteAssignmentPrinter.timingValid = true;
+    suiteAssignmentPrinter.startTime = 0L;
+    suiteAssignmentPrinter.testFinished(description);
 
-    verify(mSuiteAssignmentPrinter).sendString(contains("."));
+    verify(suiteAssignmentPrinter).sendString(contains("."));
   }
 }

@@ -17,7 +17,7 @@
 package androidx.test.runner.permission;
 
 import android.app.UiAutomation;
-import android.support.annotation.VisibleForTesting;
+import androidx.annotation.VisibleForTesting;
 
 /**
  * Ideally we wouldn't need this abstraction but since {@link UiAutomation} is final we need an
@@ -43,7 +43,7 @@ public abstract class ShellCommand {
     }
     for (int ii = 0; ii < len; ii++) {
       char c = word.charAt(ii);
-      // We do this positively so as to be sure we don't inadvertently t
+      // We do this positively so as to be sure we don't inadvertently forget
       // any unsafe characters.
       if (!Character.isLetterOrDigit(c) && SAFE_PUNCTUATION.indexOf(c) == -1) {
         // replace() actually means "replace all".

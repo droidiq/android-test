@@ -1,3 +1,8 @@
+load("//build_extensions:release.bzl", "axt_release_lib")
+load("//build_extensions:maven_repo.bzl", "maven_artifact")
+load("//build_extensions:axt_versions.bzl", "ANDROIDX_VERSION", "ESPRESSO_VERSION", "GOOGLE_MATERIAL_VERSION")
+load("//build_extensions:combine_jars.bzl", "combine_jars")
+
 # Description:
 #   Contributed / non-core functionality of Espresso. Tools which add on to
 #   Espresso belong here.
@@ -5,6 +10,12 @@ licenses(["notice"])  # Apache License 2.0
 
 package(
     default_visibility = ["//:__subpackages__"],
+)
+
+android_library(
+    name = "resources",
+    manifest = "AndroidManifest.xml",
+    resource_files = glob(["res/**"]),
 )
 
 android_library(
@@ -36,13 +47,15 @@ android_library(
     srcs = ["PickerActions.java"],
     visibility = ["//visibility:public"],
     deps = [
-        ":support_v4_neverlink",
+        "//:androidx_annotation",
+        "//:androidx_core",
+        "//:androidx_legacy_support_core_ui",
         "//espresso/core/java/androidx/test/espresso",
         "//espresso/core/java/androidx/test/espresso:framework",
         "//espresso/core/java/androidx/test/espresso:interface",
         "//espresso/core/java/androidx/test/espresso/matcher",
-        "@hamcrest//jar",
-        "@jsr305//jar",
+        "@maven//:com_google_code_findbugs_jsr305",
+        "@maven//:org_hamcrest_hamcrest_all",
     ],
 )
 
@@ -52,14 +65,16 @@ android_library(
     visibility = ["//visibility:public"],
     deps = [
         ":guava_checks",
-        ":recyclerview_neverlink",
-        ":support_v4_neverlink",
+        "//:androidx_annotation",
+        "//:androidx_core",
+        "//:androidx_legacy_support_core_ui",
+        "//:androidx_recyclerview",
         "//espresso/core/java/androidx/test/espresso",
         "//espresso/core/java/androidx/test/espresso:framework",
         "//espresso/core/java/androidx/test/espresso:interface",
         "//espresso/core/java/androidx/test/espresso/matcher",
-        "@hamcrest//jar",
-        "@jsr305//jar",
+        "@maven//:com_google_code_findbugs_jsr305",
+        "@maven//:org_hamcrest_hamcrest_all",
     ],
 )
 
@@ -72,13 +87,14 @@ android_library(
     ],
     visibility = ["//visibility:public"],
     deps = [
-        ":support_v4_neverlink",
+        ":resources",
+        "//:androidx_annotation",
+        "//:androidx_core",
+        "//:androidx_drawerlayout",
+        "//:androidx_legacy_support_core_ui",
         "//espresso/core/java/androidx/test/espresso",
-        "//espresso/core/java/androidx/test/espresso:framework",
-        "//espresso/core/java/androidx/test/espresso:interface",
         "//espresso/core/java/androidx/test/espresso/matcher",
-        "@hamcrest//jar",
-        "@jsr305//jar",
+        "@maven//:org_hamcrest_hamcrest_all",
     ],
 )
 
@@ -89,7 +105,7 @@ android_library(
     ],
     visibility = ["//visibility:public"],
     deps = [
-        "@hamcrest//jar",
+        "@maven//:org_hamcrest_hamcrest_all",
     ],
 )
 
@@ -104,8 +120,8 @@ android_library(
         ":guava_checks",
         "//espresso/core/java/androidx/test/espresso",
         "//runner/android_junit_runner",
-        "@accessibility//jar",
-        "@hamcrest//jar",
+        "@maven//:com_google_android_apps_common_testing_accessibility_framework_accessibility_test_framework",
+        "@maven//:org_hamcrest_hamcrest_all",
     ],
 )
 
@@ -115,15 +131,18 @@ android_library(
     srcs = ["NavigationViewActions.java"],
     visibility = ["//visibility:public"],
     deps = [
-        ":designlib_neverlink",
-        ":recyclerview_neverlink",
-        ":support_v4_neverlink",
+        "//:androidx_annotation",
+        "//:androidx_core",
+        "//:androidx_drawerlayout",
+        "//:androidx_legacy_support_core_ui",
+        "//:androidx_recyclerview",
+        "//:google_android_material",
         "//espresso/core/java/androidx/test/espresso",
         "//espresso/core/java/androidx/test/espresso:framework",
         "//espresso/core/java/androidx/test/espresso:interface",
         "//espresso/core/java/androidx/test/espresso/matcher",
-        "@hamcrest//jar",
-        "@jsr305//jar",
+        "@maven//:com_google_code_findbugs_jsr305",
+        "@maven//:org_hamcrest_hamcrest_all",
     ],
 )
 
@@ -133,43 +152,22 @@ android_library(
     srcs = ["ViewPagerActions.java"],
     visibility = ["//visibility:public"],
     deps = [
-        ":support_v4_neverlink",
+        "//:androidx_annotation",
+        "//:androidx_core",
+        "//:androidx_legacy_support_core_ui",
+        "//:androidx_viewpager",
         "//espresso/core/java/androidx/test/espresso",
         "//espresso/core/java/androidx/test/espresso/action",
         "//espresso/core/java/androidx/test/espresso/matcher",
-        "@hamcrest//jar",
+        "@maven//:org_hamcrest_hamcrest_all",
     ],
 )
 
 android_library(
     name = "guava_checks",
     srcs = ["Checks.java"],
-    deps = ["@jsr305//jar"],
+    deps = ["@maven//:com_google_code_findbugs_jsr305"],
 )
-
-android_library(
-    name = "support_v4_neverlink",
-    neverlink = 1,
-    exports = [
-        "//:com_android_support_support_annotations",
-        "//:com_android_support_support_compat",
-        "//:com_android_support_support_core_ui",
-    ],
-)
-
-android_library(
-    name = "recyclerview_neverlink",
-    neverlink = 1,
-    exports = ["//:com_android_support_recyclerview_v7"],
-)
-
-android_library(
-    name = "designlib_neverlink",
-    neverlink = 1,
-    exports = ["//:com_android_support_design"],
-)
-
-load("//build_extensions:release.bzl", "axt_release_lib")
 
 android_library(
     name = "espresso_contrib_release_lib",
@@ -188,34 +186,14 @@ android_library(
 
 axt_release_lib(
     name = "espresso_contrib_release",
-    # use a custom package so the unnecessary generated R class containing support lib resources
-    # gets removed
-    custom_package = "com.removeme",
+    keep_spec = "androidx/test/espresso/contrib",
     multidex = "native",
-    overlapping_jars = [
-        "//runner/monitor/java/androidx/test:monitor_release_no_deps.jar",
-        "//runner/android_junit_runner/java/androidx/test:runner_release_no_deps.jar",
-        "//runner/rules/java/androidx/test:rules_release_no_deps.jar",
-        "//espresso/idling_resource/java/androidx/test/espresso:espresso_idling_resource_release_no_deps.jar",
-        "//espresso/core/java/androidx/test/espresso:espresso_core_release_no_deps.jar",
-        "@junit//jar",
-    ],
-    remove_specs = [
-        # remove all android.support classes except androidx.test.espresso.contrib
-        "android.*|^androidx.test.espresso.contrib",
-        # remove META-INF directory to avoid duplicate clashes with imports from the support library.
-        "META-INF",
-        # remove android.arch classes that get pulled in from the support library.
-        "android.arch.*",
-    ],
+    remove_spec = "androidx/test/espresso/contrib/R[$$\\.]",
+    resource_files = glob(["res/**"]),
     deps = [
         ":espresso_contrib_release_lib",
     ],
 )
-
-load("//build_extensions:maven_repo.bzl", "maven_artifact")
-load("//build_extensions:axt_versions.bzl", "ESPRESSO_VERSION", "ANDROIDX_VERSION", "GOOGLE_MATERIAL_VERSION")
-load("//build_extensions:combine_jars.bzl", "combine_jars")
 
 filegroup(
     name = "contrib_src",
@@ -246,9 +224,11 @@ maven_artifact(
         "androidx.test.espresso:espresso-idling-resource:%s" % ESPRESSO_VERSION,
         "com.google.android.material:material:%s" % GOOGLE_MATERIAL_VERSION,
         "androidx.recyclerview:recyclerview:%s" % ANDROIDX_VERSION,
+        "androidx.drawerlayout:drawerlayout:%s" % ANDROIDX_VERSION,
+        "androidx.viewpager:viewpager:%s" % ANDROIDX_VERSION,
         "androidx.core:core:%s" % ANDROIDX_VERSION,
         "androidx.legacy:legacy-support-core-utils:%s" % ANDROIDX_VERSION,
-        "com.google.android.apps.common.testing.accessibility.framework:accessibility-test-framework:2.0",
+        "com.google.android.apps.common.testing.accessibility.framework:accessibility-test-framework:3.1",
     ],
     artifact_id = "espresso-contrib",
     group_id = "androidx.test.espresso",

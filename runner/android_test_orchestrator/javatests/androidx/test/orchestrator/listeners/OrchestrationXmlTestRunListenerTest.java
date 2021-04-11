@@ -15,10 +15,12 @@
  */
 package androidx.test.orchestrator.listeners;
 
+import static androidx.test.core.app.ApplicationProvider.getApplicationContext;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
+import androidx.test.ext.junit.runners.AndroidJUnit4;
 import androidx.test.orchestrator.junit.ParcelableDescription;
 import androidx.test.orchestrator.junit.ParcelableFailure;
 import androidx.test.orchestrator.junit.ParcelableResult;
@@ -39,16 +41,15 @@ import org.junit.runner.Description;
 import org.junit.runner.Result;
 import org.junit.runner.RunWith;
 import org.junit.runner.notification.Failure;
-import org.robolectric.RobolectricTestRunner;
 import org.xml.sax.InputSource;
 
 /** Unit tests for {@link OrchestrationXmlTestRunListener}. */
-@RunWith(RobolectricTestRunner.class)
+@RunWith(AndroidJUnit4.class)
 public class OrchestrationXmlTestRunListenerTest {
 
-  private OrchestrationXmlTestRunListener mResultReporter;
-  private ByteArrayOutputStream mOutputStream;
-  private File mReportDir;
+  private OrchestrationXmlTestRunListener resultReporter;
+  private ByteArrayOutputStream outputStream;
+  private File reportDir;
   private static final String TRACE_PREFIX = "java.lang.Throwable: ";
   private static final String CLASS_NAME = "FooTest";
   private static final String TEST_NAME = "testFoo";
@@ -56,12 +57,12 @@ public class OrchestrationXmlTestRunListenerTest {
   @Before
   public void setUp() throws Exception {
 
-    mOutputStream = new ByteArrayOutputStream();
-    mResultReporter =
+    outputStream = new ByteArrayOutputStream();
+    resultReporter =
         new OrchestrationXmlTestRunListener() {
           @Override
           OutputStream createOutputResultStream(File reportDir) throws IOException {
-            return mOutputStream;
+            return outputStream;
           }
 
           @Override
@@ -70,13 +71,14 @@ public class OrchestrationXmlTestRunListenerTest {
           }
         };
     // TODO: use mock file dir instead
-    mReportDir = createTmpDir();
-    mResultReporter.setReportDir(mReportDir);
+    this.reportDir = createTmpDir();
+    resultReporter.setReportDir(this.reportDir);
   }
 
   private File createTmpDir() throws IOException {
     // create a temp file with unique name, then make it a directory
-    File tmpDir = File.createTempFile("foo", "dir");
+    File outputDir = getApplicationContext().getCacheDir();
+    File tmpDir = File.createTempFile("foo", "dir", outputDir);
     tmpDir.delete();
     if (!tmpDir.mkdirs()) {
       throw new IOException("unable to create directory");
@@ -99,8 +101,8 @@ public class OrchestrationXmlTestRunListenerTest {
 
   @After
   public void tearDown() throws Exception {
-    if (mReportDir != null) {
-      recursiveDelete(mReportDir);
+    if (reportDir != null) {
+      recursiveDelete(reportDir);
     }
   }
 
@@ -114,9 +116,9 @@ public class OrchestrationXmlTestRunListenerTest {
             + "timestamp=\"ignore\" hostname=\"localhost\"> "
             + "<properties />"
             + "</testsuite>";
-    mResultReporter.orchestrationRunStarted(0);
+    resultReporter.orchestrationRunStarted(0);
     runTestSucceed(null, true);
-    mResultReporter.orchestrationRunFinished();
+    resultReporter.orchestrationRunFinished();
 
     // because the timestamp is impossible to hardcode, look for the actual timestamp and
     // replace it in the expected string.
@@ -134,9 +136,9 @@ public class OrchestrationXmlTestRunListenerTest {
   @Test
   public void testSinglePass() {
     Description testDescription = Description.createTestDescription(CLASS_NAME, TEST_NAME, 1);
-    mResultReporter.orchestrationRunStarted(1);
+    resultReporter.orchestrationRunStarted(1);
     runTestSucceed(testDescription, true);
-    mResultReporter.orchestrationRunFinished();
+    resultReporter.orchestrationRunFinished();
     String output = getOutput();
     // TODO: consider doing xml based compare
     assertTrue(output.contains("tests=\"1\" failures=\"0\" errors=\"0\""));
@@ -154,9 +156,9 @@ public class OrchestrationXmlTestRunListenerTest {
     final String trace = "this is a trace";
     Throwable cause = new Throwable(trace);
     cause.setStackTrace(new StackTraceElement[0]);
-    mResultReporter.orchestrationRunStarted(1);
+    resultReporter.orchestrationRunStarted(1);
     runTestFailed(testDescription, cause, true);
-    mResultReporter.orchestrationRunFinished();
+    resultReporter.orchestrationRunFinished();
     String output = getOutput();
     // TODO: consider doing xml based compare
     assertTrue(output.contains("tests=\"1\" failures=\"1\" errors=\"0\""));
@@ -179,11 +181,11 @@ public class OrchestrationXmlTestRunListenerTest {
     Throwable cause = new Throwable(trace);
     cause.setStackTrace(new StackTraceElement[0]);
 
-    mResultReporter.orchestrationRunStarted(testDescriptions.size());
+    resultReporter.orchestrationRunStarted(testDescriptions.size());
     runTestSucceed(testDescriptions.get(0), isolated);
     runTestFailed(testDescriptions.get(1), cause, isolated);
     runTestSucceed(testDescriptions.get(2), isolated);
-    mResultReporter.orchestrationRunFinished();
+    resultReporter.orchestrationRunFinished();
 
     String output = getOutput();
     assertTrue(output.contains("tests=\"3\" failures=\"1\" errors=\"0\""));
@@ -210,22 +212,22 @@ public class OrchestrationXmlTestRunListenerTest {
     Throwable cause = new Throwable(trace);
     cause.setStackTrace(new StackTraceElement[0]);
 
-    mResultReporter.orchestrationRunStarted(testDescriptions.size());
+    resultReporter.orchestrationRunStarted(testDescriptions.size());
     runTestSucceed(testDescriptions.get(0), isolated);
     runTestFailed(testDescriptions.get(1), cause, isolated);
     runTestSucceed(testDescriptions.get(2), isolated);
-    mResultReporter.orchestrationRunFinished();
+    resultReporter.orchestrationRunFinished();
     String isolatedOutput = replaceTime(getOutput());
 
     setUp();
     isolated = false;
-    mResultReporter.orchestrationRunStarted(testDescriptions.size());
+    resultReporter.orchestrationRunStarted(testDescriptions.size());
     testRunStarted();
     runTestSucceed(testDescriptions.get(0), isolated);
     runTestFailed(testDescriptions.get(1), cause, isolated);
     runTestSucceed(testDescriptions.get(2), isolated);
     testRunFinished();
-    mResultReporter.orchestrationRunFinished();
+    resultReporter.orchestrationRunFinished();
     String unisolatedOutput = replaceTime(getOutput());
 
     assertEquals(isolatedOutput, unisolatedOutput);
@@ -243,8 +245,8 @@ public class OrchestrationXmlTestRunListenerTest {
       testRunStarted();
     }
     if (testDescription != null) {
-      mResultReporter.testStarted(new ParcelableDescription(testDescription));
-      mResultReporter.testFinished(new ParcelableDescription(testDescription));
+      resultReporter.testStarted(new ParcelableDescription(testDescription));
+      resultReporter.testFinished(new ParcelableDescription(testDescription));
     }
     if (isolated) {
       testRunFinished();
@@ -255,26 +257,26 @@ public class OrchestrationXmlTestRunListenerTest {
     if (isolated) {
       testRunStarted();
     }
-    mResultReporter.testStarted(new ParcelableDescription(testDescription));
-    mResultReporter.testFailure(new ParcelableFailure(new Failure(testDescription, cause)));
-    mResultReporter.testFinished(new ParcelableDescription(testDescription));
+    resultReporter.testStarted(new ParcelableDescription(testDescription));
+    resultReporter.testFailure(new ParcelableFailure(new Failure(testDescription, cause)));
+    resultReporter.testFinished(new ParcelableDescription(testDescription));
     if (isolated) {
       testRunFinished();
     }
   }
 
   private void testRunStarted() {
-    mResultReporter.testRunStarted(
+    resultReporter.testRunStarted(
         new ParcelableDescription(Description.createSuiteDescription("null")));
   }
 
   private void testRunFinished() {
-    mResultReporter.testRunFinished(new ParcelableResult(new Result()));
+    resultReporter.testRunFinished(new ParcelableResult(new Result()));
   }
 
   /** Gets the output produced, stripping it of extraneous whitespace characters. */
   private String getOutput() {
-    String output = mOutputStream.toString();
+    String output = outputStream.toString();
     // ignore newlines and tabs whitespace
     output = output.replaceAll("[\\r\\n\\t]", "");
     // replace two ws chars with one

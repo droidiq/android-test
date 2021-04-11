@@ -16,12 +16,14 @@
 
 package androidx.test.internal.platform.app;
 
-import static androidx.test.InstrumentationRegistry.getContext;
-import static androidx.test.InstrumentationRegistry.getTargetContext;
+import static androidx.test.platform.app.InstrumentationRegistry.getInstrumentation;
 
 import android.app.Activity;
+import android.app.Instrumentation.ActivityResult;
 import android.content.ComponentName;
 import android.content.Intent;
+import android.os.Bundle;
+import androidx.annotation.Nullable;
 
 /**
  * Invokes lifecycle event changes on an {@link Activity}. All methods may work synchronously or
@@ -36,15 +38,35 @@ public interface ActivityInvoker {
    * fallback to instrumentation context.
    */
   default Intent getIntentForActivity(Class<? extends Activity> activityClass) {
-    Intent intent = Intent.makeMainActivity(new ComponentName(getTargetContext(), activityClass));
-    if (getTargetContext().getPackageManager().resolveActivity(intent, 0) != null) {
+    Intent intent =
+        Intent.makeMainActivity(
+            new ComponentName(getInstrumentation().getTargetContext(), activityClass));
+    if (getInstrumentation().getTargetContext().getPackageManager().resolveActivity(intent, 0)
+        != null) {
       return intent;
     }
-    return Intent.makeMainActivity(new ComponentName(getContext(), activityClass));
+    return Intent.makeMainActivity(
+        new ComponentName(getInstrumentation().getContext(), activityClass));
   }
 
-  /** Starts an Activity using the given intent. */
+  /**
+   * Starts an activity using the given intent. After the activity finishes you can retrieve its
+   * result code and data via {@link #getActivityResult()}.
+   */
+  void startActivity(Intent intent, @Nullable Bundle activityOptions);
+
+  /** Convenience method to retain backwards compatibility */
   void startActivity(Intent intent);
+
+  /**
+   * Returns activity result that is started by {@link #startActivity}. Unlike other methods this
+   * method blocks execution until the result becomes available.
+   *
+   * <p>Note: this method doesn't call {@link Activity#finish()} of the activity that is started by
+   * {@link #startActivity}. If you call this method without calling that, it will end up with
+   * runtime error and make the test to fail.
+   */
+  ActivityResult getActivityResult();
 
   /**
    * Transitions a current Activity to {@link androidx.test.runner.lifecycle.Stage#RESUMED}.
@@ -82,4 +104,13 @@ public interface ActivityInvoker {
    * @throws IllegalStateException when you call this method with Activity in non-supported state
    */
   void recreateActivity(Activity activity);
+
+  /**
+   * Finishes the Activity.
+   *
+   * <p>The current Activity state must be resumed, paused, or stopped.
+   *
+   * @throws IllegalStateException when you call this method with Activity in non-supported state
+   */
+  void finishActivity(Activity activity);
 }

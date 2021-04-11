@@ -23,7 +23,7 @@ import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
 import static org.hamcrest.Matchers.any;
 
-import android.support.annotation.CheckResult;
+import androidx.annotation.CheckResult;
 import android.view.View;
 import androidx.test.espresso.UiController;
 import androidx.test.espresso.ViewAction;
@@ -35,8 +35,12 @@ import androidx.test.espresso.web.assertion.WebAssertion;
 import androidx.test.espresso.web.model.Atom;
 import androidx.test.espresso.web.model.ElementReference;
 import androidx.test.espresso.web.model.WindowReference;
+import androidx.test.internal.platform.util.TestOutputEmitter;
 import androidx.test.internal.runner.tracker.UsageTrackerRegistry;
 import androidx.test.internal.runner.tracker.UsageTrackerRegistry.AxtVersions;
+import java.io.Serializable;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
@@ -59,6 +63,10 @@ import org.hamcrest.Matcher;
 public final class Web {
   static {
     UsageTrackerRegistry.getInstance().trackUsage("Espresso-Web", AxtVersions.ESPRESSO_VERSION);
+    // Also adds the usage data as test output properties. By default it's no-op.
+    Map<String, Serializable> usageProperties = new HashMap<>();
+    usageProperties.put("Espresso-Web", AxtVersions.ESPRESSO_VERSION);
+    TestOutputEmitter.addOutputProperties(usageProperties);
   }
 
   public static WebInteraction<Void> onWebView() {

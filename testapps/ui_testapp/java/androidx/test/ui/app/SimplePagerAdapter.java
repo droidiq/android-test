@@ -17,11 +17,11 @@
 package androidx.test.ui.app;
 
 import android.graphics.Color;
-import android.support.v4.view.PagerAdapter;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.TextView;
+import androidx.viewpager.widget.PagerAdapter;
 
 class SimplePagerAdapter extends PagerAdapter {
 

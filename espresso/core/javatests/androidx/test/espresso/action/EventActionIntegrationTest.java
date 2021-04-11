@@ -33,10 +33,10 @@ import android.view.ViewConfiguration;
 import androidx.test.espresso.UiController;
 import androidx.test.espresso.ViewAction;
 import androidx.test.espresso.matcher.ViewMatchers;
+import androidx.test.ext.junit.runners.AndroidJUnit4;
 import androidx.test.filters.LargeTest;
 import androidx.test.filters.SdkSuppress;
 import androidx.test.rule.ActivityTestRule;
-import androidx.test.runner.AndroidJUnit4;
 import androidx.test.ui.app.GestureActivity;
 import androidx.test.ui.app.R;
 import org.hamcrest.Matcher;
@@ -69,6 +69,8 @@ public class EventActionIntegrationTest {
     onView(withText(is(activity.getString(R.string.text_click)))).check(matches(isDisplayed()));
   }
 
+  // fails on SDK 30 due to the key dispatching timeout of 5 seconds. see b/162542125
+  @SdkSuppress(maxSdkVersion = 29)
   @Test
   public void badClickTesting() {
     onView(withText(is(activity.getString(R.string.text_click))))

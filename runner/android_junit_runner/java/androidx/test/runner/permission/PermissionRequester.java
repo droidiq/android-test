@@ -24,12 +24,13 @@ import static junit.framework.Assert.fail;
 import android.annotation.TargetApi;
 import android.content.Context;
 import android.os.Build;
-import android.support.annotation.NonNull;
-import android.support.annotation.VisibleForTesting;
+import androidx.annotation.NonNull;
+import androidx.annotation.VisibleForTesting;
 import android.text.TextUtils;
 import android.util.Log;
-import androidx.test.InstrumentationRegistry;
 import androidx.test.annotation.Beta;
+import androidx.test.internal.platform.content.PermissionGranter;
+import androidx.test.platform.app.InstrumentationRegistry;
 import androidx.test.runner.permission.UiAutomationShellCommand.PmCommand;
 import java.util.HashSet;
 
@@ -51,24 +52,24 @@ import java.util.HashSet;
  */
 @Beta
 @TargetApi(value = 23)
-public class PermissionRequester {
+public class PermissionRequester implements PermissionGranter {
 
   private static final String TAG = "PermissionRequester";
 
-  private int mAndroidRuntimeVersion = Build.VERSION.SDK_INT;
+  private int androidRuntimeVersion = Build.VERSION.SDK_INT;
 
-  @NonNull private final Context mTargetContext;
+  @NonNull private final Context targetContext;
 
   @VisibleForTesting
-  final HashSet<RequestPermissionCallable> mRequestedPermissions = new HashSet<>();
+  final HashSet<RequestPermissionCallable> requestedPermissions = new HashSet<>();
 
   public PermissionRequester() {
-    this(InstrumentationRegistry.getTargetContext());
+    this(InstrumentationRegistry.getInstrumentation().getTargetContext());
   }
 
   @VisibleForTesting
   PermissionRequester(@NonNull Context targetContext) {
-    mTargetContext = checkNotNull(targetContext, "targetContext cannot be null!");
+    this.targetContext = checkNotNull(targetContext, "targetContext cannot be null!");
   }
 
   /**
@@ -88,10 +89,10 @@ public class PermissionRequester {
         GrantPermissionCallable requestPermissionCallable =
             new GrantPermissionCallable(
                 new UiAutomationShellCommand(
-                    mTargetContext.getPackageName(), permission, PmCommand.GRANT_PERMISSION),
-                mTargetContext,
+                    targetContext.getPackageName(), permission, PmCommand.GRANT_PERMISSION),
+                targetContext,
                 permission);
-        checkState(mRequestedPermissions.add(requestPermissionCallable));
+        checkState(requestedPermissions.add(requestPermissionCallable));
       }
     }
   }
@@ -104,7 +105,7 @@ public class PermissionRequester {
    */
   public void requestPermissions() {
     if (deviceSupportsRuntimePermissions()) {
-      for (RequestPermissionCallable requestPermissionCallable : mRequestedPermissions) {
+      for (RequestPermissionCallable requestPermissionCallable : requestedPermissions) {
         try {
           if (RequestPermissionCallable.Result.FAILURE == requestPermissionCallable.call()) {
             fail("Failed to grant permissions, see logcat for details");
@@ -121,7 +122,7 @@ public class PermissionRequester {
 
   @VisibleForTesting
   protected void setAndroidRuntimeVersion(int sdkInt) {
-    mAndroidRuntimeVersion = sdkInt;
+    androidRuntimeVersion = sdkInt;
   }
 
   private boolean deviceSupportsRuntimePermissions() {
@@ -137,6 +138,6 @@ public class PermissionRequester {
   }
 
   private int getAndroidRuntimeVersion() {
-    return mAndroidRuntimeVersion;
+    return androidRuntimeVersion;
   }
 }

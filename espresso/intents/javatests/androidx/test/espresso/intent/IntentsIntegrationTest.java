@@ -59,12 +59,13 @@ import android.app.Instrumentation.ActivityResult;
 import android.content.Intent;
 import android.os.Build;
 import androidx.test.espresso.intent.rule.IntentsTestRule;
+import androidx.test.ext.junit.runners.AndroidJUnit4;
 import androidx.test.filters.LargeTest;
-import androidx.test.runner.AndroidJUnit4;
 import androidx.test.ui.app.R;
 import androidx.test.ui.app.SendActivity;
 import junit.framework.AssertionFailedError;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -257,7 +258,9 @@ public class IntentsIntegrationTest {
     assertNoUnverifiedIntents();
   }
 
+  // TODO(b/168904560): relies on MMS app. Rewrite to not have this dependency
   @Test
+  @Ignore
   public void externalIntentWithType() {
     onView(withId(R.id.send_message_button)).perform(scrollTo(), click());
     intended(
@@ -277,7 +280,6 @@ public class IntentsIntegrationTest {
     intended(
         allOf(
             hasAction(Intent.ACTION_VIEW),
-            anyOf(toPackage("com.android.browser"), toPackage("com.android.chrome")),
             hasData(
                 allOf(
                     hasHost("www.google.com"),
@@ -299,8 +301,7 @@ public class IntentsIntegrationTest {
             hasAction(Intent.ACTION_VIEW),
             hasCategories(hasItem(Intent.CATEGORY_BROWSABLE)),
             hasData(hasHost("www.google.com")),
-            hasExtras(allOf(hasEntry("key1", "value1"), hasEntry("key2", "value2"))),
-            anyOf(toPackage("com.android.browser"), toPackage("com.android.chrome"))));
+            hasExtras(allOf(hasEntry("key1", "value1"), hasEntry("key2", "value2")))));
     assertOnSendActivity();
   }
 

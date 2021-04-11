@@ -4,10 +4,7 @@ licenses(["notice"])  # Apache License 2.0
 
 package(
     default_visibility = [
-        "//espresso/core/java/androidx/test/espresso:espresso_pkg",
-        "//espresso/web/java/androidx/test/espresso/web/action:__pkg__",
-        "//testapps/multiprocess_testapp/java/androidx/test/multiprocess/app:__pkg__",
-        "//testapps/multiprocess_testapp/javatests/androidx/test/multiprocess/app:__pkg__",
+        "//visibility:public",
     ],
 )
 
@@ -31,11 +28,11 @@ android_library(
     deps = [
         ":exceptions",
         ":reflectionUtils",
-        "//:com_android_support_support_annotations",
+        "//:androidx_annotation",
         "//espresso/core/java/androidx/test/espresso/proto:ui_interaction_android_pb3",
         "//espresso/core/java/androidx/test/espresso/remote/annotation:remote_msg_annotations",
-        "@com_google_protobuf_javalite//:protobuf_java_lite",
-        "@guava//jar",
+        "@com_google_protobuf//:protobuf_javalite",
+        "@maven//:com_google_guava_guava",
     ],
 )
 
@@ -46,13 +43,13 @@ android_library(
     deps = [
         ":exceptions",
         ":reflectionUtils",
-        "//:com_android_support_support_annotations",
+        "//:androidx_annotation",
         "//espresso/core/java/androidx/test/espresso:framework",
         "//espresso/core/java/androidx/test/espresso:interface",
         "//espresso/core/java/androidx/test/espresso/remote/annotation:remote_msg_annotations",
-        "@com_google_protobuf_javalite//:protobuf_java_lite",
-        "@guava//jar",
-        "@hamcrest//jar",
+        "@com_google_protobuf//:protobuf_javalite",
+        "@maven//:com_google_guava_guava",
+        "@maven//:org_hamcrest_hamcrest_all",
     ],
 )
 
@@ -67,10 +64,10 @@ android_library(
     visibility = ["//visibility:public"],
     deps = [
         ":exceptions",
-        "//:com_android_support_support_annotations",
+        "//:androidx_annotation",
         "//runner/android_junit_runner/java/androidx/test:runner",
-        "@com_google_protobuf_javalite//:protobuf_java_lite",
-        "@guava//jar",
+        "@com_google_protobuf//:protobuf_javalite",
+        "@maven//:com_google_guava_guava",
     ],
 )
 
@@ -98,7 +95,7 @@ android_library(
     idl_import_root = "idls",
     idl_srcs = glob(["idls/**"]),
     visibility = ["//visibility:public"],
-    deps = ["@com_google_protobuf_javalite//:protobuf_java_lite"],
+    deps = ["@com_google_protobuf//:protobuf_javalite"],
 )
 
 android_library(
@@ -111,15 +108,15 @@ android_library(
         ":interface",
         ":reflectionUtils",
         ":registry",
-        "//:com_android_support_support_annotations",
+        "//:androidx_annotation",
         "//espresso/core/java/androidx/test/espresso:framework",
         "//espresso/core/java/androidx/test/espresso:interface",
         "//espresso/core/java/androidx/test/espresso/proto:ui_interaction_android_pb3",
         "//espresso/core/java/androidx/test/espresso/remote/annotation:remote_msg_annotations",
         "//runner/android_junit_runner/java/androidx/test:runner",
-        "@com_google_protobuf_javalite//:protobuf_java_lite",
-        "@guava//jar",
-        "@hamcrest//jar",
+        "@com_google_protobuf//:protobuf_javalite",
+        "@maven//:com_google_guava_guava",
+        "@maven//:org_hamcrest_hamcrest_all",
     ],
 )
 
@@ -135,7 +132,7 @@ android_library(
     visibility = ["//visibility:public"],
     deps = [
         "//espresso/core/java/androidx/test/espresso:interface",
-        "@com_google_protobuf_javalite//:protobuf_java_lite",
+        "@com_google_protobuf//:protobuf_javalite",
     ],
 )
 
@@ -146,7 +143,7 @@ BINDABLE = [
 android_library(
     name = "bindable",
     srcs = BINDABLE,
-    deps = ["@com_google_protobuf_javalite//:protobuf_java_lite"],
+    deps = ["@com_google_protobuf//:protobuf_javalite"],
 )
 
 android_library(
@@ -160,7 +157,7 @@ android_library(
         ":exceptions",
         ":interface",
         ":protoUtils",
-        "//:com_android_support_support_annotations",
+        "//:androidx_annotation",
         "//espresso/core/java/androidx/test/espresso",
         "//espresso/core/java/androidx/test/espresso:data-interaction-remote",
         "//espresso/core/java/androidx/test/espresso:interface",
@@ -180,11 +177,15 @@ android_library(
         "//espresso/web/java/androidx/test/espresso/web/sugar:remote_sugar",
         "//espresso/web/java/androidx/test/espresso/web/webdriver:remote_webdriver_atoms",
         "//runner/android_junit_runner",
-        "@com_google_protobuf_javalite//:protobuf_java_lite",
-        "@guava//jar",
-        "@hamcrest//jar",
+        "@com_google_protobuf//:protobuf_javalite",
+        "@maven//:com_google_guava_guava",
+        "@maven//:org_hamcrest_hamcrest_all",
     ],
 )
+
+load("//build_extensions:maven_repo.bzl", "maven_artifact")
+load("//build_extensions:axt_versions.bzl", "RUNNER_VERSION", "ESPRESSO_VERSION", "ANDROIDX_VERSION")
+load("//build_extensions:combine_jars.bzl", "combine_jars")
 
 filegroup(
     name = "espresso_remote_src",
@@ -197,4 +198,48 @@ filegroup(
         ":libregistry-src.jar",
         ":libremote-src.jar",
     ],
+)
+
+combine_jars(
+    name = "espresso_remote_src_jars",
+    srcs = [
+        ":espresso_remote_src",
+    ],
+)
+
+load("//build_extensions:release.bzl", "axt_release_lib")
+
+axt_release_lib(
+    name = "espresso_remote_release",
+    jarjar_rules = "release_jarjar_rules.txt",
+    keep_spec = "androidx/test/espresso",
+    overlapping_jars = [
+        "//espresso/core/java/androidx/test/espresso:espresso_core_release_no_deps.jar",
+        "//espresso/web/java/androidx/test/espresso/web:espresso_web_release_no_deps.jar",
+        "//espresso/idling_resource/java/androidx/test/espresso:espresso_idling_resource_release_no_deps.jar",
+    ],
+    proguard_library = ":proguard_library.cfg",
+    proguard_specs = [
+        "//:proguard_binary.cfg",
+        "//espresso:proguard_binary.cfg",
+    ],
+    deps = [
+        ":remote",
+    ],
+)
+
+maven_artifact(
+    name = "espresso_remote_maven_artifact",
+    src = ":espresso_remote_release.aar",
+    artifact_deps = [
+        "androidx.test:runner:%s" % RUNNER_VERSION,
+        "androidx.test.espresso:espresso-core:%s" % ESPRESSO_VERSION,
+        "androidx.test.espresso:espresso-web:%s" % ESPRESSO_VERSION,
+        "androidx.annotation:annotation:%s" % ANDROIDX_VERSION,
+    ],
+    artifact_id = "espresso-remote",
+    group_id = "androidx.test.espresso",
+    last_updated = "20170622000000",
+    src_jar = ":espresso_remote_src_jars.jar",
+    version = "%s" % ESPRESSO_VERSION,
 )

@@ -16,10 +16,11 @@
 
 package androidx.test.internal.runner.junit4.statement;
 
-import static androidx.test.InstrumentationRegistry.getInstrumentation;
+import static androidx.test.platform.app.InstrumentationRegistry.getInstrumentation;
 
 import android.os.Looper;
 import android.util.Log;
+import java.lang.annotation.Annotation;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.FutureTask;
 import java.util.concurrent.atomic.AtomicReference;
@@ -30,29 +31,29 @@ import org.junit.runners.model.Statement;
 public class UiThreadStatement extends Statement {
   private static final String TAG = "UiThreadStatement";
 
-  private final Statement mBase;
+  private final Statement base;
 
-  private final boolean mRunOnUiThread;
+  private final boolean runOnUiThread;
 
   public UiThreadStatement(Statement base, boolean runOnUiThread) {
-    mBase = base;
-    mRunOnUiThread = runOnUiThread;
+    this.base = base;
+    this.runOnUiThread = runOnUiThread;
   }
 
   public boolean isRunOnUiThread() {
-    return mRunOnUiThread;
+    return runOnUiThread;
   }
 
   @Override
   public void evaluate() throws Throwable {
-    if (mRunOnUiThread) {
+    if (runOnUiThread) {
       final AtomicReference<Throwable> exceptionRef = new AtomicReference<>();
       runOnUiThread(
           new Runnable() {
             @Override
             public void run() {
               try {
-                mBase.evaluate();
+                base.evaluate();
               } catch (Throwable throwable) {
                 exceptionRef.set(throwable);
               }
@@ -63,28 +64,62 @@ public class UiThreadStatement extends Statement {
         throw throwable;
       }
     } else {
-      mBase.evaluate();
+      base.evaluate();
     }
   }
 
   public static boolean shouldRunOnUiThread(FrameworkMethod method) {
-    Class<android.test.UiThreadTest> deprecatedUiThreadTestClass = android.test.UiThreadTest.class;
-    if (method.getAnnotation(deprecatedUiThreadTestClass) != null) {
+    Class<? extends Annotation> deprecatedUiThreadTestClass =
+        loadUiThreadClass("android.test.UiThreadTest");
+    if (hasAnnotation(method, deprecatedUiThreadTestClass)) {
       return true;
     } else {
-      try {
-        // to avoid circular dependency on Rules module use the class name directly
-        @SuppressWarnings("unchecked") // reflection
-        Class UiThreadTestClass = Class.forName("androidx.test.annotation.UiThreadTest");
-        if (method.getAnnotation(deprecatedUiThreadTestClass) != null
-            || method.getAnnotation(UiThreadTestClass) != null) {
+      // to avoid circular dependency on Rules module use the class name directly
+      @SuppressWarnings("unchecked") // reflection
+      Class<? extends Annotation> uiThreadTestClass =
+          loadUiThreadClass("androidx.test.annotation.UiThreadTest");
+      if (hasAnnotation(method, deprecatedUiThreadTestClass)
+          || hasAnnotation(method, uiThreadTestClass)) {
           return true;
         }
-      } catch (ClassNotFoundException e) {
-        // ignore, annotation is not used.
-      }
     }
     return false;
+  }
+
+  private static boolean hasAnnotation(
+      FrameworkMethod method, Class<? extends Annotation> annotationClass) {
+    return annotationClass != null
+        && (method.getAnnotation(annotationClass) != null
+            || classHasAnnotation(method, annotationClass));
+  }
+
+  private static boolean classHasAnnotation(
+      FrameworkMethod method, Class<? extends Annotation> annotationClass) {
+    Class<?> declaringClass = method.getDeclaringClass();
+
+    for (Class<?> declaredInterface : declaringClass.getInterfaces()) {
+      if (declaredInterface.isAnnotationPresent(annotationClass)) {
+        return true;
+      }
+    }
+
+    while (declaringClass != null) {
+      if (declaringClass.isAnnotationPresent(annotationClass)) {
+        return true;
+      }
+
+      declaringClass = declaringClass.getSuperclass();
+    }
+
+    return false;
+  }
+
+  private static Class<? extends Annotation> loadUiThreadClass(String className) {
+    try {
+      return (Class<? extends Annotation>) Class.forName(className);
+    } catch (ClassNotFoundException e) {
+      return null;
+    }
   }
 
   public static void runOnUiThread(final Runnable runnable) throws Throwable {

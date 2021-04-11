@@ -34,6 +34,7 @@ import androidx.test.espresso.remote.Bindable;
 import androidx.test.espresso.remote.IInteractionExecutionStatus;
 import androidx.test.espresso.remote.RemoteInteraction;
 import androidx.test.espresso.util.HumanReadables;
+import androidx.test.internal.platform.os.ControlledLooper;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.ListenableFuture;
@@ -42,6 +43,7 @@ import com.google.common.util.concurrent.ListeningExecutorService;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.Callable;
 import java.util.concurrent.Executor;
@@ -67,6 +69,7 @@ public final class ViewInteraction {
   private final InterruptableUiController uiController;
   private final ViewFinder viewFinder;
   private final Executor mainThreadExecutor;
+  private final ControlledLooper controlledLooper;
   private volatile FailureHandler failureHandler;
   private final Matcher<View> viewMatcher;
   private final AtomicReference<Matcher<Root>> rootMatcherRef;
@@ -86,7 +89,8 @@ public final class ViewInteraction {
       AtomicReference<Matcher<Root>> rootMatcherRef,
       AtomicReference<Boolean> needsActivity,
       RemoteInteraction remoteInteraction,
-      ListeningExecutorService remoteExecutor) {
+      ListeningExecutorService remoteExecutor,
+      ControlledLooper controlledLooper) {
     this.viewFinder = checkNotNull(viewFinder);
     this.uiController = (InterruptableUiController) checkNotNull(uiController);
     this.failureHandler = checkNotNull(failureHandler);
@@ -96,6 +100,7 @@ public final class ViewInteraction {
     this.needsActivity = checkNotNull(needsActivity);
     this.remoteInteraction = checkNotNull(remoteInteraction);
     this.remoteExecutor = checkNotNull(remoteExecutor);
+    this.controlledLooper = checkNotNull(controlledLooper);
   }
 
   /**
@@ -158,7 +163,7 @@ public final class ViewInteraction {
     ViewAction innerViewAction = va.getInnerViewAction();
 
     List<ListenableFuture<Void>> interactions = new ArrayList<>();
-    interactions.add(runSynchronouslyOnUiThread(performInteraction));
+    interactions.add(postAsynchronouslyOnUiThread(performInteraction));
     if (!remoteInteraction.isRemoteProcess()) {
       // Only the original process should submit remote interactionsList;
       interactions.add(
@@ -219,10 +224,12 @@ public final class ViewInteraction {
     Log.i(
         TAG,
         String.format(
-            "Performing '%s' action on view %s", viewAction.getDescription(), viewMatcher));
+            Locale.ROOT,
+            "Performing '%s' action on view %s",
+            viewAction.getDescription(),
+            viewMatcher));
     if (!constraints.matches(targetView)) {
-      // TODO: update this to describeMismatch once hamcrest is updated to new
-      // version in android_test_support (we are waiting for version 1.4 to avoid issues with generics)
+      // TODO: update this to describeMismatch once hamcrest 1.4 is available
       StringDescription stringDescription =
           new StringDescription(
               new StringBuilder(
@@ -234,7 +241,7 @@ public final class ViewInteraction {
           .appendValue(HumanReadables.describe(targetView));
 
       if (viewAction.getInnerViewAction() instanceof ScrollToAction
-          && isDescendantOfA(isAssignableFrom((AdapterView.class))).matches(targetView)) {
+          && isDescendantOfA(isAssignableFrom(AdapterView.class)).matches(targetView)) {
         stringDescription.appendText(
             "\nFurther Info: ScrollToAction on a view inside an AdapterView will not work. "
                 + "Use Espresso.onData to load the view.");
@@ -275,14 +282,16 @@ public final class ViewInteraction {
               missingViewException = nsve;
             }
             Log.i(
-                TAG, String.format("Checking '%s' assertion on view %s", viewAssert, viewMatcher));
+                TAG,
+                String.format(
+                    Locale.ROOT, "Checking '%s' assertion on view %s", viewAssert, viewMatcher));
             singleExecutionViewAssertion.check(targetView, missingViewException);
             return null;
           }
         };
 
     List<ListenableFuture<Void>> interactions = new ArrayList<>();
-    interactions.add(runSynchronouslyOnUiThread(checkInteraction));
+    interactions.add(postAsynchronouslyOnUiThread(checkInteraction));
     if (!remoteInteraction.isRemoteProcess()) {
       // Only the original process should submit remote interactionsList;
       interactions.add(
@@ -298,7 +307,7 @@ public final class ViewInteraction {
     return this;
   }
 
-  private ListenableFuture<Void> runSynchronouslyOnUiThread(Callable<Void> interaction) {
+  private ListenableFuture<Void> postAsynchronouslyOnUiThread(Callable<Void> interaction) {
     ListenableFutureTask<Void> mainThreadInteraction = ListenableFutureTask.create(interaction);
     mainThreadExecutor.execute(mainThreadInteraction);
     return mainThreadInteraction;
@@ -306,6 +315,7 @@ public final class ViewInteraction {
 
   private void waitForAndHandleInteractionResults(List<ListenableFuture<Void>> interactions) {
     try {
+      controlledLooper.drainMainThreadUntilIdle();
       // Blocking call
       InteractionResultsHandler.gatherAnyResult(interactions);
     } catch (RuntimeException ee) {

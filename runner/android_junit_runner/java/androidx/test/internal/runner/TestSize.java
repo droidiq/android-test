@@ -16,7 +16,7 @@
 
 package androidx.test.internal.runner;
 
-import android.support.annotation.VisibleForTesting;
+import androidx.annotation.VisibleForTesting;
 import java.lang.annotation.Annotation;
 import java.util.Arrays;
 import java.util.Collections;
@@ -37,7 +37,7 @@ public final class TestSize {
       new TestSize(
           "small",
           androidx.test.filters.SmallTest.class,
-          android.test.suitebuilder.annotation.SmallTest.class,
+          "android.test.suitebuilder.annotation.SmallTest",
           200 /* in ms */);
 
   /** @see androidx.test.filters.MediumTest */
@@ -45,7 +45,7 @@ public final class TestSize {
       new TestSize(
           "medium",
           androidx.test.filters.MediumTest.class,
-          android.test.suitebuilder.annotation.MediumTest.class,
+          "android.test.suitebuilder.annotation.MediumTest",
           1000 /* in ms */);
 
   /** @see androidx.test.filters.LargeTest */
@@ -53,7 +53,7 @@ public final class TestSize {
       new TestSize(
           "large",
           androidx.test.filters.LargeTest.class,
-          android.test.suitebuilder.annotation.LargeTest.class,
+          "android.test.suitebuilder.annotation.LargeTest",
           Float.MAX_VALUE /* no threshold */);
 
   /**
@@ -64,31 +64,44 @@ public final class TestSize {
   private static final Set<TestSize> ALL_SIZES =
       Collections.unmodifiableSet(new HashSet<>(Arrays.asList(SMALL, MEDIUM, LARGE)));
 
-  private final String mSizeQualifierName;
-  private final Class<? extends Annotation> mPlatformAnnotationClass;
-  private final Class<? extends Annotation> mRunnerFilterAnnotationClass;
+  private final String sizeQualifierName;
+  private final Class<? extends Annotation> platformAnnotationClass;
+  private final Class<? extends Annotation> runnerFilterAnnotationClass;
 
   /**
    * This value the maximum allowed runtime (in ms) for a test included in the test size suite. It
    * is used to make an educated guess at which size bucket a test belongs to.
    */
-  private final float mTestSizeRunTimeThreshold;
+  private final float testSizeRunTimeThreshold;
 
   @VisibleForTesting
   public TestSize(
       String sizeQualifierName,
-      Class<? extends Annotation> platformAnnotationClass,
       Class<? extends Annotation> runnerFilterAnnotationClass,
+      String legacyPlatformAnnotationClassName,
       float testSizeRuntimeThreshold) {
-    mSizeQualifierName = sizeQualifierName;
-    mPlatformAnnotationClass = platformAnnotationClass;
-    mRunnerFilterAnnotationClass = runnerFilterAnnotationClass;
-    mTestSizeRunTimeThreshold = testSizeRuntimeThreshold;
+    this.sizeQualifierName = sizeQualifierName;
+    this.platformAnnotationClass = loadPlatformAnnotationClass(legacyPlatformAnnotationClassName);
+    this.runnerFilterAnnotationClass = runnerFilterAnnotationClass;
+    testSizeRunTimeThreshold = testSizeRuntimeThreshold;
+  }
+
+  private static Class<? extends Annotation> loadPlatformAnnotationClass(
+      String legacyPlatformAnnotationClassName) {
+    if (legacyPlatformAnnotationClassName == null) {
+      return null;
+    }
+    try {
+      return (Class<? extends Annotation>) Class.forName(legacyPlatformAnnotationClassName);
+    } catch (ClassNotFoundException e) {
+      // ignore - not present on boot classpath
+      return null;
+    }
   }
 
   /** @return the test size name */
   public String getSizeQualifierName() {
-    return mSizeQualifierName;
+    return sizeQualifierName;
   }
 
   /**
@@ -96,8 +109,8 @@ public final class TestSize {
    *     annotation class.
    */
   public boolean testMethodIsAnnotatedWithTestSize(Description description) {
-    if (description.getAnnotation(mRunnerFilterAnnotationClass) != null
-        || description.getAnnotation(mPlatformAnnotationClass) != null) {
+    if (description.getAnnotation(runnerFilterAnnotationClass) != null
+        || description.getAnnotation(platformAnnotationClass) != null) {
       // If the test method is annotated with a test size annotation include it
       return true;
     }
@@ -115,17 +128,22 @@ public final class TestSize {
       return false;
     }
 
-    if (testClass.isAnnotationPresent(mRunnerFilterAnnotationClass)
-        || testClass.isAnnotationPresent(mPlatformAnnotationClass)) {
+    if (hasAnnotation(testClass, runnerFilterAnnotationClass)
+        || hasAnnotation(testClass, platformAnnotationClass)) {
       // If the test class is annotated with a test size annotation include it.
       return true;
     }
     return false;
   }
 
+  private static boolean hasAnnotation(
+      Class<?> testClass, Class<? extends Annotation> annotationClass) {
+    return annotationClass != null && testClass.isAnnotationPresent(annotationClass);
+  }
+
   /** @return the suite run time threshold for a given test size. */
   public float getRunTimeThreshold() {
-    return mTestSizeRunTimeThreshold;
+    return testSizeRunTimeThreshold;
   }
 
   /**
@@ -207,12 +225,12 @@ public final class TestSize {
 
     TestSize testSize = (TestSize) o;
 
-    return mSizeQualifierName.equals(testSize.mSizeQualifierName);
+    return sizeQualifierName.equals(testSize.sizeQualifierName);
   }
 
   @Override
   public int hashCode() {
-    return mSizeQualifierName.hashCode();
+    return sizeQualifierName.hashCode();
   }
 
   private static boolean runTimeSmallerThanThreshold(float testRuntime, float runtimeThreshold) {
@@ -220,10 +238,10 @@ public final class TestSize {
   }
 
   private Class<? extends Annotation> getFrameworkAnnotation() {
-    return mPlatformAnnotationClass;
+    return platformAnnotationClass;
   }
 
   private Class<? extends Annotation> getRunnerAnnotation() {
-    return mRunnerFilterAnnotationClass;
+    return runnerFilterAnnotationClass;
   }
 }

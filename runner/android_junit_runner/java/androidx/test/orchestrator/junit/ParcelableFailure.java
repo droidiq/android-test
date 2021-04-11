@@ -19,31 +19,36 @@ package androidx.test.orchestrator.junit;
 import android.os.Parcel;
 import android.os.Parcelable;
 import android.util.Log;
+import androidx.test.services.events.internal.StackTrimmer;
 import org.junit.runner.notification.Failure;
 
-/** Parcelable imitation of a JUnit ParcelableFailure */
+/** Parcelable imitation of a JUnit Failure */
 public final class ParcelableFailure implements Parcelable {
 
   private static final String TAG = "ParcelableFailure";
 
   private static final int MAX_STREAM_LENGTH = 16 * 1024;
 
-  private final ParcelableDescription mDescription;
-  private final String mTrace;
+  private final ParcelableDescription description;
+  private final String trace;
 
   public ParcelableFailure(Failure failure) {
-    this.mDescription = new ParcelableDescription(failure.getDescription());
-    this.mTrace = failure.getTrace();
+    this.description = new ParcelableDescription(failure.getDescription());
+    this.trace = StackTrimmer.getTrimmedStackTrace(failure);
   }
 
   private ParcelableFailure(Parcel in) {
-    mDescription = in.readParcelable(ParcelableDescription.class.getClassLoader());
-    mTrace = in.readString();
+    description = in.readParcelable(ParcelableDescription.class.getClassLoader());
+    trace = in.readString();
   }
 
   public ParcelableFailure(ParcelableDescription description, Throwable t) {
-    mDescription = description;
-    mTrace = trimToLength(t.getMessage());
+    this(description, t.getMessage());
+  }
+
+  public ParcelableFailure(ParcelableDescription description, String message) {
+    this.description = description;
+    trace = trimToLength(message);
   }
 
   @Override
@@ -53,8 +58,8 @@ public final class ParcelableFailure implements Parcelable {
 
   @Override
   public void writeToParcel(Parcel out, int flags) {
-    out.writeParcelable(mDescription, 0);
-    out.writeString(mTrace);
+    out.writeParcelable(description, 0);
+    out.writeString(trace);
   }
 
   public static final Creator<ParcelableFailure> CREATOR =
@@ -71,22 +76,25 @@ public final class ParcelableFailure implements Parcelable {
       };
 
   private static String trimToLength(String trace) {
+    if (!trace.endsWith("\n")) {
+      trace = trace + "\n";
+    }
     if (trace.length() > MAX_STREAM_LENGTH) {
       Log.i(
           TAG,
           String.format(
-              "Stack trace too long, trimmed to first %s characters.", MAX_STREAM_LENGTH));
-      return trace.substring(0, MAX_STREAM_LENGTH) + "\n";
+              "Stack trace too long, trimmed to first %s characters.", MAX_STREAM_LENGTH - 1));
+      return trace.substring(0, MAX_STREAM_LENGTH - 1) + "\n";
     } else {
-      return trace + "\n";
+      return trace;
     }
   }
 
   public String getTrace() {
-    return mTrace;
+    return trace;
   }
 
   public ParcelableDescription getDescription() {
-    return mDescription;
+    return description;
   }
 }

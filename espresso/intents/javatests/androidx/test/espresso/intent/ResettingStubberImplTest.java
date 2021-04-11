@@ -30,12 +30,10 @@ import android.app.Instrumentation.ActivityResult;
 import android.content.Intent;
 import android.net.Uri;
 import androidx.test.annotation.UiThreadTest;
+import androidx.test.ext.junit.runners.AndroidJUnit4;
 import androidx.test.filters.MediumTest;
-import androidx.test.rule.UiThreadTestRule;
-import androidx.test.runner.AndroidJUnit4;
 import org.hamcrest.Matcher;
 import org.junit.Before;
-import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
@@ -43,8 +41,6 @@ import org.junit.runner.RunWith;
 @MediumTest
 @RunWith(AndroidJUnit4.class)
 public class ResettingStubberImplTest {
-
-  @Rule public UiThreadTestRule uiThreadTestRule = new UiThreadTestRule();
 
   private ResettingStubber resettingStubber;
 

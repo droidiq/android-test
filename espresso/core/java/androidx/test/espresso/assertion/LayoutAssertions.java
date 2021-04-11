@@ -29,7 +29,7 @@ import static org.hamcrest.Matchers.anyOf;
 import static org.hamcrest.Matchers.not;
 
 import android.graphics.Rect;
-import android.support.annotation.VisibleForTesting;
+import androidx.annotation.VisibleForTesting;
 import android.view.View;
 import android.widget.Button;
 import android.widget.ImageView;
@@ -44,6 +44,7 @@ import com.google.common.collect.Iterables;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Locale;
 import junit.framework.AssertionFailedError;
 import org.hamcrest.Matcher;
 
@@ -147,7 +148,8 @@ public final class LayoutAssertions {
                 errorMessage.append(",\n\n");
               }
               errorMessage.append(
-                  String.format("%s overlaps\n%s", describe(selectedView), describe(prevView)));
+                  String.format(
+                      Locale.ROOT, "%s overlaps\n%s", describe(selectedView), describe(prevView)));
               break;
             }
           }
@@ -162,7 +164,7 @@ public final class LayoutAssertions {
 
     @Override
     public String toString() {
-      return String.format("NoOverlapsViewAssertion{selector=%s}", selector);
+      return String.format(Locale.ROOT, "NoOverlapsViewAssertion{selector=%s}", selector);
     }
   }
 }

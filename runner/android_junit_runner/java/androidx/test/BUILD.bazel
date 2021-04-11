@@ -1,3 +1,7 @@
+load("//build_extensions:release.bzl", "axt_release_lib")
+load("//build_extensions:maven_repo.bzl", "maven_artifact")
+load("//build_extensions:axt_versions.bzl", "ANDROIDX_VERSION", "JUNIT_VERSION", "RUNNER_VERSION", "SERVICES_VERSION")
+
 # Description: Build rules for building androidx.test from source
 licenses(["notice"])  # Apache License 2.0
 
@@ -21,23 +25,14 @@ android_library(
         "//runner/monitor",
     ],
     deps = [
-        ":legacy-test-neverlink",
-        "//:com_android_support_support_annotations",
+        "//:androidx_annotation",
         "//runner/monitor",
-        "@junit//jar",
+        "//services/events/java/androidx/test/services/events",
+        "//services/storage",
+        "@androidsdk//:legacy_test-30",
+        "@maven//:junit_junit",
     ],
 )
-
-# TODO(b/117464840): remove when legacy_test-28 is a neverlink target
-java_library(
-    name = "legacy-test-neverlink",
-    neverlink = 1,
-    exports = [
-        "@androidsdk//:legacy_test-28",
-    ],
-)
-
-load("//build_extensions:release.bzl", "axt_release_lib")
 
 # group of targets to use to produce release binary + docs
 android_library(
@@ -53,33 +48,27 @@ android_library(
 # a java_library target librunner_release_no_deps
 axt_release_lib(
     name = "runner_release",
+    custom_package = "androidx.test.runner",
     jarjar_rules = "release_jarjar_rules.txt",
+    keep_spec = "androidx/test",
     overlapping_jars = [
         "//runner/monitor/java/androidx/test:monitor_release_no_deps.jar",
-        "@junit//jar",
+        "//services/storage/java/androidx/test/services/storage:test_storage_release_no_deps.jar",
     ],
     proguard_library = ":proguard_library.cfg",
-    remove_specs = [
-        "android.support.annotation*",
-    ],
     deps = [
         ":runner_release_lib",
     ],
 )
-
-load("//build_extensions:maven_repo.bzl", "maven_artifact")
-load("//build_extensions:axt_versions.bzl", "RUNNER_VERSION", "ANDROIDX_VERSION", "JUNIT_VERSION")
-load("//build_extensions:combine_jars.bzl", "combine_jars")
-load("//build_extensions:droiddoc.bzl", "droiddoc")
 
 maven_artifact(
     name = "runner_maven_artifact",
     src = ":runner_release.aar",
     artifact_deps = [
         "androidx.annotation:annotation:%s" % ANDROIDX_VERSION,
-        "androidx.test:monitor:%s" % RUNNER_VERSION,
+        "androidx.test:monitor:[%s]" % RUNNER_VERSION,
+        "androidx.test.services:storage:[%s]" % SERVICES_VERSION,
         "junit:junit:%s" % JUNIT_VERSION,
-        "net.sf.kxml:kxml2:2.3.0",
     ],
     artifact_id = "runner",
     group_id = "androidx.test",

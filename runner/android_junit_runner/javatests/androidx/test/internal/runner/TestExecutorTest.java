@@ -16,18 +16,19 @@
 
 package androidx.test.internal.runner;
 
-import static androidx.test.InstrumentationRegistry.getInstrumentation;
+import static androidx.test.platform.app.InstrumentationRegistry.getInstrumentation;
 
 import android.os.Bundle;
+import androidx.test.ext.junit.runners.AndroidJUnit4;
 import androidx.test.filters.SmallTest;
 import androidx.test.internal.runner.listener.InstrumentationRunListener;
-import androidx.test.runner.AndroidJUnit4;
 import java.io.PrintStream;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.Request;
 import org.junit.runner.Result;
 import org.junit.runner.RunWith;
+import org.mockito.ArgumentMatchers;
 import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
@@ -37,26 +38,25 @@ import org.mockito.MockitoAnnotations;
 @SmallTest
 public class TestExecutorTest {
 
-  @Mock private Request mMockRequest;
-  @Mock private InstrumentationRunListener mMockListener;
+  @Mock private Request mockRequest;
+  @Mock private InstrumentationRunListener mockListener;
 
-  private TestExecutor mExecutor;
+  private TestExecutor executor;
 
   @Before
   public void setUp() {
     MockitoAnnotations.initMocks(this);
-    mExecutor =
-        new TestExecutor.Builder(getInstrumentation()).addRunListener(mMockListener).build();
+    executor = new TestExecutor.Builder(getInstrumentation()).addRunListener(mockListener).build();
   }
 
   /** Simple normal case execution */
   @Test
   public void testExecute() {
-    mExecutor.execute(mMockRequest);
-    Mockito.verify(mMockListener)
+    executor.execute(mockRequest);
+    Mockito.verify(mockListener)
         .instrumentationRunFinished(
-            (PrintStream) Mockito.anyObject(),
-            (Bundle) Mockito.anyObject(),
-            (Result) Mockito.anyObject());
+            (PrintStream) ArgumentMatchers.any(),
+            (Bundle) ArgumentMatchers.any(),
+            (Result) ArgumentMatchers.any());
   }
 }

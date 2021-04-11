@@ -43,6 +43,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runner.notification.RunListener;
 import org.mockito.ArgumentCaptor;
+import org.mockito.ArgumentMatchers;
 import org.mockito.Captor;
 import org.mockito.InOrder;
 import org.mockito.Mock;
@@ -55,18 +56,18 @@ import org.mockito.MockitoAnnotations;
 public class AndroidJUnitRunnerTest {
   public static final int SLEEP_TIME = 300;
 
-  private AndroidJUnitRunner mAndroidJUnitRunner;
+  private AndroidJUnitRunner androidJUnitRunner;
 
   @Captor private ArgumentCaptor<Iterable<String>> pathsCaptor;
   @Mock private Context mockContext;
-  @Mock private InstrumentationResultPrinter mInstrumentationResultPrinter;
+  @Mock private InstrumentationResultPrinter instrumentationResultPrinter;
   @Mock private TestRequestBuilder testRequestBuilder;
 
   @Before
   public void setUp() throws Exception {
     MockitoAnnotations.initMocks(this);
     doReturn("/apps/foo.apk").when(mockContext).getPackageCodePath();
-    mAndroidJUnitRunner =
+    androidJUnitRunner =
         new AndroidJUnitRunner() {
 
           @Override
@@ -76,7 +77,7 @@ public class AndroidJUnitRunnerTest {
 
           @Override
           InstrumentationResultPrinter getInstrumentationResultPrinter() {
-            return mInstrumentationResultPrinter;
+            return instrumentationResultPrinter;
           }
 
           @Override
@@ -120,9 +121,9 @@ public class AndroidJUnitRunnerTest {
   @Test
   public void testInstrResultPrinter_reportProcessCrash() {
     Throwable e = new RuntimeException();
-    mAndroidJUnitRunner.getInstrumentationResultPrinter();
-    mAndroidJUnitRunner.onException(this, e);
-    Mockito.verify(mInstrumentationResultPrinter).reportProcessCrash(e);
+    androidJUnitRunner.getInstrumentationResultPrinter();
+    androidJUnitRunner.onException(this, e);
+    Mockito.verify(instrumentationResultPrinter).reportProcessCrash(e);
   }
 
   /**
@@ -143,17 +144,23 @@ public class AndroidJUnitRunnerTest {
             .fromBundle(InstrumentationRegistry.getInstrumentation(), b)
             .build();
     TestExecutor.Builder executorBuilder = Mockito.mock(TestExecutor.Builder.class);
-    mAndroidJUnitRunner.addListeners(args, executorBuilder);
+    androidJUnitRunner.addListeners(args, executorBuilder);
 
     InOrder order = Mockito.inOrder(executorBuilder);
-    order.verify(executorBuilder).addRunListener(Mockito.isA(LogRunListener.class));
-    order.verify(executorBuilder).addRunListener(Mockito.isA(InstrumentationResultPrinter.class));
-    order.verify(executorBuilder).addRunListener(Mockito.isA(ActivityFinisherRunListener.class));
-    order.verify(executorBuilder).addRunListener(Mockito.isA(DelayInjector.class));
-    order.verify(executorBuilder).addRunListener(Mockito.isA(CoverageListener.class));
+    order.verify(executorBuilder).addRunListener(ArgumentMatchers.isA(LogRunListener.class));
+    order
+        .verify(executorBuilder)
+        .addRunListener(ArgumentMatchers.isA(InstrumentationResultPrinter.class));
+    order
+        .verify(executorBuilder)
+        .addRunListener(ArgumentMatchers.isA(ActivityFinisherRunListener.class));
+    order.verify(executorBuilder).addRunListener(ArgumentMatchers.isA(DelayInjector.class));
+    order.verify(executorBuilder).addRunListener(ArgumentMatchers.isA(CoverageListener.class));
     // Two extra user added listeners
-    order.verify(executorBuilder).addRunListener(Mockito.isA(LogRunListener.class));
-    order.verify(executorBuilder).addRunListener(Mockito.isA(InstrumentationResultPrinter.class));
+    order.verify(executorBuilder).addRunListener(ArgumentMatchers.isA(LogRunListener.class));
+    order
+        .verify(executorBuilder)
+        .addRunListener(ArgumentMatchers.isA(InstrumentationResultPrinter.class));
   }
 
   /**
@@ -175,18 +182,24 @@ public class AndroidJUnitRunnerTest {
             .fromBundle(InstrumentationRegistry.getInstrumentation(), b)
             .build();
     TestExecutor.Builder executorBuilder = Mockito.mock(TestExecutor.Builder.class);
-    mAndroidJUnitRunner.addListeners(args, executorBuilder);
+    androidJUnitRunner.addListeners(args, executorBuilder);
 
     InOrder order = Mockito.inOrder(executorBuilder);
     // Two extra user added listeners go first
-    order.verify(executorBuilder).addRunListener(Mockito.isA(LogRunListener.class));
-    order.verify(executorBuilder).addRunListener(Mockito.isA(InstrumentationResultPrinter.class));
+    order.verify(executorBuilder).addRunListener(ArgumentMatchers.isA(LogRunListener.class));
+    order
+        .verify(executorBuilder)
+        .addRunListener(ArgumentMatchers.isA(InstrumentationResultPrinter.class));
     // Default listeners added in AndroidJUnitRunner
-    order.verify(executorBuilder).addRunListener(Mockito.isA(LogRunListener.class));
-    order.verify(executorBuilder).addRunListener(Mockito.isA(DelayInjector.class));
-    order.verify(executorBuilder).addRunListener(Mockito.isA(CoverageListener.class));
-    order.verify(executorBuilder).addRunListener(Mockito.isA(InstrumentationResultPrinter.class));
-    order.verify(executorBuilder).addRunListener(Mockito.isA(ActivityFinisherRunListener.class));
+    order.verify(executorBuilder).addRunListener(ArgumentMatchers.isA(LogRunListener.class));
+    order.verify(executorBuilder).addRunListener(ArgumentMatchers.isA(DelayInjector.class));
+    order.verify(executorBuilder).addRunListener(ArgumentMatchers.isA(CoverageListener.class));
+    order
+        .verify(executorBuilder)
+        .addRunListener(ArgumentMatchers.isA(InstrumentationResultPrinter.class));
+    order
+        .verify(executorBuilder)
+        .addRunListener(ArgumentMatchers.isA(ActivityFinisherRunListener.class));
   }
 
   /** Ensure classpathToScan paths are added to the runner. */
@@ -199,7 +212,7 @@ public class AndroidJUnitRunnerTest {
         new RunnerArgs.Builder()
             .fromBundle(InstrumentationRegistry.getInstrumentation(), b)
             .build();
-    mAndroidJUnitRunner.buildRequest(runnerArgs, new Bundle());
+    androidJUnitRunner.buildRequest(runnerArgs, new Bundle());
     verify(testRequestBuilder, times(1)).addPathsToScan(pathsCaptor.capture());
 
     Set<String> pathsToScan = new HashSet<>();
@@ -210,17 +223,5 @@ public class AndroidJUnitRunnerTest {
     Assert.assertEquals(2, pathsToScan.size());
     Assert.assertTrue(pathsToScan.contains("/foo/bar.dex"));
     Assert.assertTrue(pathsToScan.contains("/foo/baz.dex"));
-  }
-
-  /** Ensure everything works when classpathToScan is not explicitly provided. */
-  @Test
-  public void testDefaultClasspathIsAdded() {
-    Bundle b = new Bundle();
-    RunnerArgs runnerArgs =
-        new RunnerArgs.Builder()
-            .fromBundle(InstrumentationRegistry.getInstrumentation(), b)
-            .build();
-    mAndroidJUnitRunner.buildRequest(runnerArgs, new Bundle());
-    verify(testRequestBuilder, times(1)).addPathToScan("/apps/foo.apk");
   }
 }

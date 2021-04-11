@@ -30,7 +30,7 @@ java_proto_library(
 py_library(
     name = "emulator_meta_data_pb_py_pb2",
     srcs = ["emulator_meta_data_pb2.py"],
-    deps = ["@protobuf_archive//:protobuf_python"],
+    deps = ["@com_google_protobuf//:protobuf_python"],
 )
 
 MOX = "@mox_archive//:mox"
@@ -63,6 +63,9 @@ filegroup(
         "support/adb.turbo",
         "support/cache.img.tar.gz",
         "support/default_sdcard.256.img.tar.gz",
+        "support/waterfall/forward_bin",
+        "support/waterfall/ports_bin",
+        "support/waterfall/waterfall_bin",
     ],
 )
 
@@ -120,13 +123,14 @@ py_binary(
     srcs = ["unified_launcher.py"],
     imports = ["../../.."],
     main = "unified_launcher.py",
+    python_version = "PY2",
     deps = [
         ":emulated_device",
         ":emulator_meta_data_pb_py_pb2",
         ":reporting",
         ":resources",
         ":xserver",
-        "@protobuf_archive//:protobuf_python",
+        "@com_google_protobuf//:protobuf_python",
         PORTPICKER,
     ] + PYGLIB,
 )

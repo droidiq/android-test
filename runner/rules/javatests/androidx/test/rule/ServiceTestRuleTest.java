@@ -16,6 +16,7 @@
 
 package androidx.test.rule;
 
+import static androidx.test.core.app.ApplicationProvider.getApplicationContext;
 import static org.hamcrest.CoreMatchers.is;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -30,10 +31,9 @@ import android.content.Intent;
 import android.os.Binder;
 import android.os.IBinder;
 import android.os.SystemClock;
-import android.support.annotation.NonNull;
-import androidx.test.InstrumentationRegistry;
+import androidx.annotation.NonNull;
+import androidx.test.ext.junit.runners.AndroidJUnit4;
 import androidx.test.filters.LargeTest;
-import androidx.test.runner.AndroidJUnit4;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import org.junit.After;
@@ -50,11 +50,11 @@ public class ServiceTestRuleTest {
 
   public static class TestService extends Service {
 
-    private final IBinder mBinder = new Binder();
+    private final IBinder binder = new Binder();
 
     @Override
     public IBinder onBind(Intent intent) {
-      return mBinder;
+      return binder;
     }
   }
 
@@ -94,7 +94,7 @@ public class ServiceTestRuleTest {
     private static StringBuilder log = new StringBuilder();
 
     @Rule
-    public final ServiceTestRule mServiceRule =
+    public final ServiceTestRule serviceRule =
         new ServiceTestRule() {
 
           @Override
@@ -137,7 +137,7 @@ public class ServiceTestRuleTest {
     @Test
     public void dummyTestToLaunchService() throws TimeoutException {
       log.append("test ");
-      mServiceRule.startService(new Intent());
+      serviceRule.startService(new Intent());
       fail("This is a dummy test to start a service");
     }
   }
@@ -157,7 +157,7 @@ public class ServiceTestRuleTest {
     private static StringBuilder log = new StringBuilder();
 
     @Rule
-    public final ServiceTestRule mServiceRule =
+    public final ServiceTestRule serviceRule =
         new ServiceTestRule() {
 
           @Override
@@ -200,7 +200,7 @@ public class ServiceTestRuleTest {
     @Test
     public void dummyTestToLaunchService() throws TimeoutException {
       log.append("test ");
-      mServiceRule.bindService(new Intent());
+      serviceRule.bindService(new Intent());
       fail("This is a dummy test to bind to a service");
     }
   }
@@ -219,7 +219,7 @@ public class ServiceTestRuleTest {
   public static class TimedOutServiceTest {
 
     @Rule
-    public final ServiceTestRule mServiceRule =
+    public final ServiceTestRule serviceRule =
         ServiceTestRule.withTimeout(50, TimeUnit.MILLISECONDS);
 
     @Rule public final ExpectedException thrown = ExpectedException.none();
@@ -229,8 +229,7 @@ public class ServiceTestRuleTest {
       thrown.expect(TimeoutException.class);
       thrown.expectMessage("Waited for 50 MILLISECONDS, but service was never connected");
       // TimeoutService takes >= 100 milliseconds to start.
-      mServiceRule.startService(
-          new Intent(InstrumentationRegistry.getTargetContext(), TimeoutService.class));
+      serviceRule.startService(new Intent(getApplicationContext(), TimeoutService.class));
     }
 
     @Test
@@ -238,8 +237,7 @@ public class ServiceTestRuleTest {
       thrown.expect(TimeoutException.class);
       thrown.expectMessage("Waited for 50 MILLISECONDS, but service was never connected");
       // TimeoutService takes >= 100 milliseconds to bind.
-      mServiceRule.bindService(
-          new Intent(InstrumentationRegistry.getTargetContext(), TimeoutService.class));
+      serviceRule.bindService(new Intent(getApplicationContext(), TimeoutService.class));
     }
   }
 
@@ -250,53 +248,50 @@ public class ServiceTestRuleTest {
     assertEquals(0, result.getFailureCount());
   }
 
-  @Rule public final ServiceTestRule mServiceRule = new ServiceTestRule();
+  @Rule public final ServiceTestRule serviceRule = new ServiceTestRule();
 
   @Test
   public void verifySuccessfulServiceStart() throws TimeoutException {
-    mServiceRule.startService(
-        new Intent(InstrumentationRegistry.getTargetContext(), TestService.class));
-    assertTrue("The service was not started", mServiceRule.mServiceStarted);
-    assertTrue("The service was not bound", mServiceRule.mServiceBound);
+    serviceRule.startService(new Intent(getApplicationContext(), TestService.class));
+    assertTrue("The service was not started", serviceRule.serviceStarted);
+    assertTrue("The service was not bound", serviceRule.serviceBound);
   }
 
   @Test
   public void verifySuccessfulServiceBind() throws TimeoutException {
-    mServiceRule.bindService(
-        new Intent(InstrumentationRegistry.getTargetContext(), TestService.class));
-    assertTrue("The service was not bound", mServiceRule.mServiceBound);
-    assertFalse("The service started instead of bound", mServiceRule.mServiceStarted);
+    serviceRule.bindService(new Intent(getApplicationContext(), TestService.class));
+    assertTrue("The service was not bound", serviceRule.serviceBound);
+    assertFalse("The service started instead of bound", serviceRule.serviceStarted);
   }
 
   @Test
   public void serviceCanBeBoundTwice() throws TimeoutException {
-    Intent intent = new Intent(InstrumentationRegistry.getTargetContext(), TestService.class);
+    Intent intent = new Intent(getApplicationContext(), TestService.class);
 
-    IBinder firstBinder = mServiceRule.bindService(intent);
+    IBinder firstBinder = serviceRule.bindService(intent);
     assertNotNull("Service failed to bind 1/2", firstBinder);
 
-    IBinder secondBinder = mServiceRule.bindService(intent);
+    IBinder secondBinder = serviceRule.bindService(intent);
     assertNotNull("Service failed to bind 2/2", secondBinder);
   }
 
   @Test
   public void serviceCanBindAfterUnbind() throws TimeoutException {
-    Intent intent = new Intent(InstrumentationRegistry.getTargetContext(), TestService.class);
+    Intent intent = new Intent(getApplicationContext(), TestService.class);
 
-    IBinder firstBinder = mServiceRule.bindService(intent);
+    IBinder firstBinder = serviceRule.bindService(intent);
     assertNotNull("Service failed to bind 1/2", firstBinder);
-    mServiceRule.unbindService();
+    serviceRule.unbindService();
 
-    IBinder secondBinder = mServiceRule.bindService(intent);
+    IBinder secondBinder = serviceRule.bindService(intent);
     assertNotNull("Service failed to bind 2/2", secondBinder);
   }
 
   @Test
   public void serviceThatCantBeBoundTo() {
-    Intent intent =
-        new Intent(InstrumentationRegistry.getTargetContext(), ServiceThatCantBeBoundTo.class);
+    Intent intent = new Intent(getApplicationContext(), ServiceThatCantBeBoundTo.class);
     try {
-      mServiceRule.startService(intent);
+      serviceRule.startService(intent);
       fail("TimeoutException was not thrown");
     } catch (TimeoutException e) {
       // expected
@@ -305,9 +300,7 @@ public class ServiceTestRuleTest {
 
   @Test
   public void serviceThatIsNotDefinedInManifest() throws TimeoutException {
-    Intent intent =
-        new Intent(
-            InstrumentationRegistry.getTargetContext(), ServiceThatIsNotDefinedInManifest.class);
-    assertFalse(mServiceRule.bindServiceAndWait(intent, null, 123));
+    Intent intent = new Intent(getApplicationContext(), ServiceThatIsNotDefinedInManifest.class);
+    assertFalse(serviceRule.bindServiceAndWait(intent, null, 123));
   }
 }

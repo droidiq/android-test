@@ -36,6 +36,7 @@ public class DeviceBrokerFactory {
   public static synchronized DeviceBroker getInstance(String[] testArgs) {
     return Guice.createInjector(
             Modules.combine(
+                new ExecReporterModule(),
                 new LocalBrokerModule(),
                 new ProxyConfiguringModule(),
                 new WrappedBrokerModule(),

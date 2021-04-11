@@ -21,15 +21,15 @@ android_library(
         exclude = REMOTE_VIEW_MATCHERS + REMOTE_HAMCREST_v1_3_CORE_MATCHERS,
     ),
     deps = [
-        "//:com_android_support_support_annotations",
+        "//:androidx_annotation",
         "//espresso/core/java/androidx/test/espresso:interface",
         "//espresso/core/java/androidx/test/espresso/remote:interface",
         "//espresso/core/java/androidx/test/espresso/remote/annotation:remote_msg_annotations",
         "//espresso/core/java/androidx/test/espresso/util",
         "//runner/android_junit_runner",
-        "@guava//jar",
-        "@hamcrest//jar",
-        "@junit//jar",
+        "@maven//:com_google_guava_guava",
+        "@maven//:org_hamcrest_hamcrest_all",
+        "@maven//:junit_junit",
     ],
 )
 
@@ -40,7 +40,7 @@ android_library(
     ),
     deps = [
         ":matcher",
-        "//:com_android_support_support_annotations",
+        "//:androidx_annotation",
         "//espresso/core/java/androidx/test/espresso/proto/matcher:hamcrest_matchers_v1_3_android_pb3",
         "//espresso/core/java/androidx/test/espresso/proto/matcher:ui_interaction_root_matchers_android_pb3",
         "//espresso/core/java/androidx/test/espresso/proto/matcher:ui_interaction_view_matchers_android_pb3",
@@ -48,7 +48,7 @@ android_library(
         "//espresso/core/java/androidx/test/espresso/remote:interface",
         "//espresso/core/java/androidx/test/espresso/remote:protoUtils",
         "//espresso/core/java/androidx/test/espresso/remote:registry",
-        "@guava//jar",
+        "@maven//:com_google_guava_guava",
     ],
 )
 
@@ -62,6 +62,6 @@ android_library(
         "//espresso/core/java/androidx/test/espresso/remote:interface",
         "//espresso/core/java/androidx/test/espresso/remote:protoUtils",
         "//espresso/core/java/androidx/test/espresso/remote:registry",
-        "@hamcrest//jar",
+        "@maven//:org_hamcrest_hamcrest_all",
     ],
 )

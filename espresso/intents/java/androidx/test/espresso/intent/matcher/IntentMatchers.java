@@ -16,6 +16,7 @@
 
 package androidx.test.espresso.intent.matcher;
 
+import static androidx.test.core.app.ApplicationProvider.getApplicationContext;
 import static androidx.test.espresso.intent.Checks.checkNotNull;
 import static androidx.test.espresso.intent.matcher.BundleMatchers.hasEntry;
 import static androidx.test.espresso.intent.matcher.BundleMatchers.hasKey;
@@ -29,7 +30,6 @@ import android.content.Context;
 import android.content.Intent;
 import android.net.Uri;
 import android.os.Bundle;
-import androidx.test.InstrumentationRegistry;
 import androidx.test.espresso.intent.ResolvedIntent;
 import java.util.Set;
 import org.hamcrest.Description;
@@ -164,6 +164,22 @@ public final class IntentMatchers {
       @Override
       public boolean matchesSafely(Intent intent) {
         return uriMatcher.matches(intent.getData());
+      }
+    };
+  }
+
+  public static Matcher<Intent> hasDataString(final Matcher<String> stringMatcher) {
+    checkNotNull(stringMatcher);
+
+    return new TypeSafeMatcher<Intent>() {
+      @Override
+      public void describeTo(Description description) {
+        description.appendText("has data string: ").appendDescriptionOf(stringMatcher);
+      }
+
+      @Override
+      public boolean matchesSafely(Intent intent) {
+        return stringMatcher.matches(intent.getDataString());
       }
     };
   }
@@ -303,12 +319,27 @@ public final class IntentMatchers {
     };
   }
 
+  /** Matches an intent if it {@link Intent#filterEquals(Intent)} the expected intent. */
+  public static Matcher<Intent> filterEquals(Intent expectedIntent) {
+    return new TypeSafeMatcher<Intent>() {
+      @Override
+      public void describeTo(Description description) {
+        description.appendText("filterEquals: ").appendValue(expectedIntent);
+      }
+
+      @Override
+      public boolean matchesSafely(Intent intent) {
+        return expectedIntent.filterEquals(intent);
+      }
+    };
+  }
+
   /**
    * Matches an intent if its package is the same as the target package for the instrumentation
    * test.
    */
   public static Matcher<Intent> isInternal() {
-    final Context targetContext = InstrumentationRegistry.getTargetContext();
+    final Context targetContext = getApplicationContext();
 
     return new TypeSafeMatcher<Intent>() {
       @Override

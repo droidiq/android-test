@@ -28,8 +28,8 @@ import androidx.test.espresso.remote.RemoteDescriptorRegistry;
 import androidx.test.espresso.web.model.Atoms.ScriptWithArgsSimpleAtom;
 import androidx.test.espresso.web.proto.model.WebModelAtoms.ScriptWithArgsSimpleAtomProto;
 import androidx.test.espresso.web.proto.model.WebModelAtoms.TransformingAtomProto;
+import androidx.test.ext.junit.runners.AndroidJUnit4;
 import androidx.test.filters.SmallTest;
-import androidx.test.runner.AndroidJUnit4;
 import com.google.common.collect.Lists;
 import java.util.List;
 import org.hamcrest.Matchers;
@@ -141,7 +141,8 @@ public class RemoteAtomsTest {
   public void getTitle_transformationFromProto() {
     TransformingAtom getTitleAtomFromProto =
         transformingAtom_transformationFromProto(Atoms.getTitle());
-    assertThat(getTitleAtomFromProto.getScript(), equalTo("return document.title;"));
+    assertThat(
+        getTitleAtomFromProto.getScript(), equalTo("function getTitle() {return document.title;}"));
   }
 
   @Test
@@ -153,6 +154,8 @@ public class RemoteAtomsTest {
   public void getCurrentUrl_transformationFromProto() {
     TransformingAtom getCurrentUrlAtomProto =
         transformingAtom_transformationFromProto(Atoms.getCurrentUrl());
-    assertThat(getCurrentUrlAtomProto.getScript(), equalTo("return document.location.href;"));
+    assertThat(
+        getCurrentUrlAtomProto.getScript(),
+        equalTo("function getCurrentUrl() {return document.location.href;}"));
   }
 }

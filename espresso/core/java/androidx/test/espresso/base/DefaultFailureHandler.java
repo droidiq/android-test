@@ -27,6 +27,10 @@ import android.view.View;
 import androidx.test.espresso.EspressoException;
 import androidx.test.espresso.FailureHandler;
 import androidx.test.espresso.PerformException;
+import androidx.test.espresso.internal.inject.TargetContext;
+import androidx.test.internal.platform.util.TestOutputEmitter;
+import java.util.concurrent.atomic.AtomicInteger;
+import javax.inject.Inject;
 import junit.framework.AssertionFailedError;
 import org.hamcrest.Matcher;
 
@@ -36,15 +40,19 @@ import org.hamcrest.Matcher;
  */
 public final class DefaultFailureHandler implements FailureHandler {
 
+  private static final AtomicInteger failureCount = new AtomicInteger(0);
   private final Context appContext;
 
-  public DefaultFailureHandler(
-          Context appContext) {
+  @Inject
+  public DefaultFailureHandler(@TargetContext Context appContext) {
     this.appContext = checkNotNull(appContext);
   }
 
   @Override
   public void handle(Throwable error, Matcher<View> viewMatcher) {
+    int count = failureCount.incrementAndGet();
+    TestOutputEmitter.takeScreenshot("view-op-error-" + count + ".png");
+    TestOutputEmitter.captureWindowHierarchy("explore-window-hierarchy-" + count + ".xml");
     if (error instanceof EspressoException
         || error instanceof AssertionFailedError
         || error instanceof AssertionError) {
@@ -67,7 +75,7 @@ public final class DefaultFailureHandler implements FailureHandler {
       if (!isAnimationAndTransitionDisabled(appContext)) {
         sb.append(
             "Animations or transitions are enabled on the target device.\n"
-                + "For more info check: http://goo.gl/qVu1yV\n\n");
+                + "For more info check: https://developer.android.com/training/testing/espresso/setup#set-up-environment\n\n");
       }
       sb.append(viewMatcher.toString());
       // Re-throw the exception with the viewMatcher (used to locate the view) as the view

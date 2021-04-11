@@ -14,13 +14,16 @@
  * limitations under the License.
  */
 
-package androidx.test.espresso.intent;
+package androidx.test.espresso.intent.matcher;
 
+import static androidx.test.core.app.ApplicationProvider.getApplicationContext;
 import static androidx.test.espresso.intent.matcher.BundleMatchers.hasEntry;
+import static androidx.test.espresso.intent.matcher.IntentMatchers.filterEquals;
 import static androidx.test.espresso.intent.matcher.IntentMatchers.hasAction;
 import static androidx.test.espresso.intent.matcher.IntentMatchers.hasCategories;
 import static androidx.test.espresso.intent.matcher.IntentMatchers.hasComponent;
 import static androidx.test.espresso.intent.matcher.IntentMatchers.hasData;
+import static androidx.test.espresso.intent.matcher.IntentMatchers.hasDataString;
 import static androidx.test.espresso.intent.matcher.IntentMatchers.hasExtra;
 import static androidx.test.espresso.intent.matcher.IntentMatchers.hasExtraWithKey;
 import static androidx.test.espresso.intent.matcher.IntentMatchers.hasExtras;
@@ -45,9 +48,9 @@ import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.net.Uri;
-import androidx.test.InstrumentationRegistry;
+import androidx.test.espresso.intent.ResolvedIntent;
+import androidx.test.ext.junit.runners.AndroidJUnit4;
 import androidx.test.filters.SmallTest;
-import androidx.test.runner.AndroidJUnit4;
 import java.util.HashSet;
 import org.hamcrest.Matcher;
 import org.junit.Rule;
@@ -64,7 +67,6 @@ public class IntentMatchersTest {
 
   private final Uri uri = Uri.parse("https://www.google.com/search?q=Matcher");
 
-  @SuppressWarnings("unchecked")
   @Test
   public void matchesTesting() {
     Matcher<Intent> matcher =
@@ -86,7 +88,6 @@ public class IntentMatchersTest {
     assertTrue(matcher.matches(intent));
   }
 
-  @SuppressWarnings("unchecked")
   @Test
   public void matchesIntentWithNoTypeAndMatcherWithType() {
     Matcher<Intent> matcher =
@@ -136,7 +137,6 @@ public class IntentMatchersTest {
                 .setDataAndType(uri, Context.ACTIVITY_SERVICE)));
   }
 
-  @SuppressWarnings("unchecked")
   @Test
   public void matchesIntentWithOneExtraAndMatcherWithNoExtra() {
     Matcher<Intent> matcher =
@@ -157,7 +157,6 @@ public class IntentMatchersTest {
                 .putExtra("key", "value")));
   }
 
-  @SuppressWarnings("unchecked")
   @Test
   public void matchesIntentWithMultipleExtraAndMatcherWithMultipleExtra() {
     Matcher<Intent> matcher =
@@ -297,6 +296,7 @@ public class IntentMatchersTest {
     assertTrue(hasData(uri.toString()).matches(intent));
     assertTrue(hasData(uri).matches(intent));
     assertTrue(hasData(equalTo(uri)).matches(intent));
+    assertTrue(hasDataString(equalTo(uri.toString())).matches(intent));
   }
 
   @Test
@@ -311,6 +311,8 @@ public class IntentMatchersTest {
     assertFalse(hasData(Uri.parse("https://www.google.com/search?q=NotMatcher")).matches(intent));
     assertFalse(
         hasData(equalTo(Uri.parse("https://www.google.com/search?q=NotMatcher"))).matches(intent));
+    assertFalse(
+        hasDataString(equalTo("https://www.google.com/search?q=NotMatcher")).matches(intent));
   }
 
   @Test
@@ -451,8 +453,41 @@ public class IntentMatchersTest {
   }
 
   @Test
+  public void filterEqualsMatches() {
+    Intent intent =
+        new Intent("foo.action", uri)
+            .setType("text")
+            .setClassName("com.foo.bar", "com.foo.bar.Baz")
+            .addCategory("category");
+    Intent intentWithFlagsAndExtras =
+        new Intent(intent).addFlags(Intent.FLAG_DEBUG_LOG_RESOLUTION).putExtra("foo", "bar");
+    assertTrue(filterEquals(intent).matches(intentWithFlagsAndExtras));
+  }
+
+  @Test
+  public void filterEqualsDoesNotMatch() {
+    Intent intent =
+        new Intent("foo.action", uri)
+            .setClassName("com.foo.bar", "com.foo.bar.Baz")
+            .addFlags(Intent.FLAG_DEBUG_LOG_RESOLUTION)
+            .setType("text");
+    Intent intentWithDifferentAction = new Intent(intent).setAction("bar.action");
+    assertFalse(filterEquals(intent).matches(intentWithDifferentAction));
+    Intent intentWithDifferentData =
+        new Intent(intent).setData(Uri.parse("https://www.google.com/search?q=NotMatcher"));
+    assertFalse(filterEquals(intent).matches(intentWithDifferentData));
+    Intent intentWithDifferentType = new Intent(intent).setType("img");
+    assertFalse(filterEquals(intent).matches(intentWithDifferentType));
+    Intent intentWithDifferentComponent =
+        new Intent(intent).setClassName("com.foo.bar", "com.foo.bar.Other");
+    assertFalse(filterEquals(intent).matches(intentWithDifferentComponent));
+    Intent intentWithDifferentCategories = new Intent(intent).addCategory("category");
+    assertFalse(filterEquals(intent).matches(intentWithDifferentCategories));
+  }
+
+  @Test
   public void isInternalTesting() {
-    String targetPackage = InstrumentationRegistry.getTargetContext().getPackageName();
+    String targetPackage = getApplicationContext().getPackageName();
     ComponentName targetComponent = new ComponentName(targetPackage, targetPackage + ".SomeClass ");
     assertTrue(isInternal().matches(new Intent().setComponent(targetComponent)));
     assertFalse(not(isInternal()).matches(new Intent().setComponent(targetComponent)));

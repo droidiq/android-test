@@ -17,8 +17,8 @@ package androidx.test.rule;
 
 import static org.junit.Assert.assertEquals;
 
+import androidx.test.ext.junit.runners.AndroidJUnit4;
 import androidx.test.filters.LargeTest;
-import androidx.test.runner.AndroidJUnit4;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.Rule;
 import org.junit.Test;
@@ -46,16 +46,16 @@ public final class DisableOnAndroidDebugTest {
   }
 
   private static class ToggleableDisableOnAndroidDebug extends DisableOnAndroidDebug {
-    private final boolean mIsDebugging;
+    private final boolean isDebugging;
 
     ToggleableDisableOnAndroidDebug(TestRule delegate, boolean isDebugging) {
       super(delegate);
-      mIsDebugging = isDebugging;
+      this.isDebugging = isDebugging;
     }
 
     @Override
     public boolean isDebugging() {
-      return mIsDebugging;
+      return isDebugging;
     }
   }
 

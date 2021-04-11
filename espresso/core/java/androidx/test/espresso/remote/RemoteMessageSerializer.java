@@ -22,7 +22,7 @@ import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
 
 import android.os.Parcelable;
-import android.support.annotation.NonNull;
+import androidx.annotation.NonNull;
 import com.google.common.base.Function;
 import com.google.common.collect.Lists;
 import com.google.protobuf.Any;
@@ -34,6 +34,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Locale;
 
 /**
  * Serializes an arbitrary object into its proto message representation.
@@ -173,10 +174,12 @@ final class RemoteMessageSerializer implements EspressoRemoteMessage.To<MessageL
       } else {
         throw new RemoteProtocolException(
             String.format(
+                Locale.ROOT,
                 "Target field: %s#%s cannot be serialised "
                     + "into a proto. Supported target fields can be of type: Any, Serializable or "
                     + "an Iterable<Any/Serializable>",
-                fieldValue.getClass().getName(), targetFieldName));
+                fieldValue.getClass().getName(),
+                targetFieldName));
       }
     }
     return (MessageLite) builderReflector.invokeBuild();

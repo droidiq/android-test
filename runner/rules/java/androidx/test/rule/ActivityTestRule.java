@@ -25,13 +25,13 @@ import android.app.Instrumentation.ActivityResult;
 import android.content.Intent;
 import android.os.Bundle;
 import android.os.Looper;
-import android.support.annotation.NonNull;
-import android.support.annotation.Nullable;
-import android.support.annotation.VisibleForTesting;
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
+import androidx.annotation.VisibleForTesting;
 import android.util.Log;
-import androidx.test.InstrumentationRegistry;
 import androidx.test.annotation.UiThreadTest;
 import androidx.test.internal.runner.junit4.statement.UiThreadStatement;
+import androidx.test.platform.app.InstrumentationRegistry;
 import androidx.test.runner.MonitoringInstrumentation;
 import androidx.test.runner.intercepting.SingleActivityFactory;
 import androidx.test.runner.lifecycle.ActivityLifecycleCallback;
@@ -48,9 +48,9 @@ import org.junit.runners.model.Statement;
  * is set to true in the constructor, the Activity under test will be launched before each test
  * annotated with <a href="http://junit.org/javadoc/latest/org/junit/Test.html"><code>Test</code>
  * </a> and before methods annotated with <a
- * href="http://junit.source.net/javadoc/org/junit/Before.html"><code>Before</code></a>, and it
+ * href="http://junit.sourceforge.net/javadoc/org/junit/Before.html"><code>Before</code></a>, and it
  * will be terminated after the test is completed and methods annotated with <a
- * href="http://junit.source.net/javadoc/org/junit/After.html"><code>After
+ * href="http://junit.sourceforge.net/javadoc/org/junit/After.html"><code>After
  * </code></a> are finished.
  *
  * <p>The Activity can be manually launched with {@link #launchActivity(Intent)}, and manually
@@ -63,7 +63,29 @@ import org.junit.runners.model.Statement;
  * Activity.
  *
  * @param <T> The Activity class under test
+ * @deprecated use {@link androidx.test.core.app.ActivityScenario} or {@link
+ *     androidx.test.ext.junit.rules.ActivityScenarioRule} instead. They offer a simpler, and safer
+ *     way of controlling Activity lifecycles.
+ *     <p>Here are some tips to consider when converting to <code>ActivityScenario/Rule</code>:
+ *     <ol>
+ *       <li>For simple cases where you want to launch the Activity before each test and tear it
+ *           down after each test (eg you are using {@link #ActivityTestRule(Class)}), convert
+ *           directly to ActivityScenarioRule.
+ *       <li>If you need control over when to launch the Activity (eg you are using {@link
+ *           #ActivityTestRule(Class, false, false)}, use ActivityScenario.launch. Its recommended
+ *           to wrap the launch in a try-block, so the Activity is closed automatically. <code>
+ *       try (ActivityScenario.launch(activityClass)) {
+ *         ...
+ *       }
+ *     </code>
+ *       <li>If you need access to the Activity during the test (eg you are calling {@link
+ *           ActivityTestRule#getActivity()} provide a Runnable callback to {@link
+ *           androidx.test.core.app.ActivityScenario#onActivity(Runnable)} instead. The callback
+ *           provided to onActivity will run on the application's main thread, thus ensuring a safer
+ *           mechanism to access the Activity.
+ *     </ol>
  */
+@Deprecated
 public class ActivityTestRule<T extends Activity> implements TestRule {
 
   private static final String TAG = "ActivityTestRule";
@@ -72,25 +94,25 @@ public class ActivityTestRule<T extends Activity> implements TestRule {
   private static final String FIELD_RESULT_CODE = "mResultCode";
   private static final String FIELD_RESULT_DATA = "mResultData";
 
-  private final Class<T> mActivityClass;
+  private final Class<T> activityClass;
 
-  private final String mTargetPackage;
+  private final String targetPackage;
 
-  private final int mLaunchFlags;
+  private final int launchFlags;
 
-  private final ActivityLifecycleCallback mLifecycleCallback = new LifecycleCallback();
+  private final ActivityLifecycleCallback lifecycleCallback = new LifecycleCallback();
 
-  private Instrumentation mInstrumentation;
+  private Instrumentation instrumentation;
 
-  private boolean mInitialTouchMode = false;
+  private boolean initialTouchMode = false;
 
-  private boolean mLaunchActivity = false;
+  private boolean launchActivity = false;
 
-  private SingleActivityFactory<T> mActivityFactory;
+  private SingleActivityFactory<T> activityFactory;
 
-  @VisibleForTesting volatile WeakReference<T> mActivity = makeWeakReference(null);
+  @VisibleForTesting volatile WeakReference<T> activity = makeWeakReference(null);
 
-  private volatile ActivityResult mActivityResult;
+  private volatile ActivityResult activityResult;
 
   /**
    * Similar to {@link #ActivityTestRule(Class, boolean)} but with "touch mode" disabled.
@@ -107,9 +129,9 @@ public class ActivityTestRule<T extends Activity> implements TestRule {
    * Similar to {@link #ActivityTestRule(Class, boolean, boolean)} but defaults to launch the
    * activity under test once per <a href="http://junit.org/javadoc/latest/org/junit/Test.html">
    * <code>Test</code></a> method. It is launched before the first <a
-   * href="http://junit.source.net/javadoc/org/junit/Before.html"><code>Before</code></a>
+   * href="http://junit.sourceforge.net/javadoc/org/junit/Before.html"><code>Before</code></a>
    * method, and terminated after the last <a
-   * href="http://junit.source.net/javadoc/org/junit/After.html"><code>After</code></a> method.
+   * href="http://junit.sourceforge.net/javadoc/org/junit/After.html"><code>After</code></a> method.
    *
    * @param activityClass The activity under test. This must be a class in the instrumentation
    *     targetPackage specified in the AndroidManifest.xml
@@ -132,16 +154,16 @@ public class ActivityTestRule<T extends Activity> implements TestRule {
    * @param launchActivity true if the Activity should be launched once per <a
    *     href="http://junit.org/javadoc/latest/org/junit/Test.html"><code>Test</code></a> method. It
    *     will be launched before the first <a
-   *     href="http://junit.source.net/javadoc/org/junit/Before.html"><code>Before</code></a>
+   *     href="http://junit.sourceforge.net/javadoc/org/junit/Before.html"><code>Before</code></a>
    *     method, and terminated after the last <a
-   *     href="http://junit.source.net/javadoc/org/junit/After.html"><code>After</code></a>
+   *     href="http://junit.sourceforge.net/javadoc/org/junit/After.html"><code>After</code></a>
    *     method.
    */
   public ActivityTestRule(
       Class<T> activityClass, boolean initialTouchMode, boolean launchActivity) {
     this(
         activityClass,
-        InstrumentationRegistry.getTargetContext().getPackageName(),
+        InstrumentationRegistry.getInstrumentation().getTargetContext().getPackageName(),
         Intent.FLAG_ACTIVITY_NEW_TASK,
         initialTouchMode,
         launchActivity);
@@ -155,15 +177,15 @@ public class ActivityTestRule<T extends Activity> implements TestRule {
    * @param launchActivity true if the Activity should be launched once per <a
    *     href="http://junit.org/javadoc/latest/org/junit/Test.html"><code>Test</code></a> method. It
    *     will be launched before the first <a
-   *     href="http://junit.source.net/javadoc/org/junit/Before.html"><code>Before</code></a>
+   *     href="http://junit.sourceforge.net/javadoc/org/junit/Before.html"><code>Before</code></a>
    *     method, and terminated after the last <a
-   *     href="http://junit.source.net/javadoc/org/junit/After.html"><code>After</code></a>
+   *     href="http://junit.sourceforge.net/javadoc/org/junit/After.html"><code>After</code></a>
    *     method.
    */
   public ActivityTestRule(
       SingleActivityFactory<T> activityFactory, boolean initialTouchMode, boolean launchActivity) {
     this(activityFactory.getActivityClassToIntercept(), initialTouchMode, launchActivity);
-    mActivityFactory = activityFactory;
+    this.activityFactory = activityFactory;
   }
 
   /**
@@ -175,9 +197,9 @@ public class ActivityTestRule<T extends Activity> implements TestRule {
    * @param launchActivity true if the Activity should be launched once per <a
    *     href="http://junit.org/javadoc/latest/org/junit/Test.html"><code>Test</code></a> method. It
    *     will be launched before the first <a
-   *     href="http://junit.source.net/javadoc/org/junit/Before.html"><code>Before</code></a>
+   *     href="http://junit.sourceforge.net/javadoc/org/junit/Before.html"><code>Before</code></a>
    *     method, and terminated after the last <a
-   *     href="http://junit.source.net/javadoc/org/junit/After.html"><code>After</code></a>
+   *     href="http://junit.sourceforge.net/javadoc/org/junit/After.html"><code>After</code></a>
    *     method.
    * @param targetPackage The name of the target package that the Activity is started under. This
    *     value is passed down to the start Intent using {@link
@@ -190,12 +212,12 @@ public class ActivityTestRule<T extends Activity> implements TestRule {
       int launchFlags,
       boolean initialTouchMode,
       boolean launchActivity) {
-    mInstrumentation = InstrumentationRegistry.getInstrumentation();
-    mActivityClass = activityClass;
-    mTargetPackage = checkNotNull(targetPackage, "targetPackage cannot be null!");
-    mLaunchFlags = launchFlags;
-    mInitialTouchMode = initialTouchMode;
-    mLaunchActivity = launchActivity;
+    instrumentation = InstrumentationRegistry.getInstrumentation();
+    this.activityClass = activityClass;
+    this.targetPackage = checkNotNull(targetPackage, "targetPackage cannot be null!");
+    this.launchFlags = launchFlags;
+    this.initialTouchMode = initialTouchMode;
+    this.launchActivity = launchActivity;
   }
 
   /**
@@ -228,7 +250,7 @@ public class ActivityTestRule<T extends Activity> implements TestRule {
   /**
    * Override this method to execute any code that should run before your {@link Activity} is
    * created and launched. This method is called before each test method, including any method
-   * annotated with <a href="http://junit.source.net/javadoc/org/junit/Before.html"><code>
+   * annotated with <a href="http://junit.sourceforge.net/javadoc/org/junit/Before.html"><code>
    * Before</code></a>.
    */
   protected void beforeActivityLaunched() {
@@ -238,9 +260,9 @@ public class ActivityTestRule<T extends Activity> implements TestRule {
   /**
    * Override this method to execute any code that should run after your {@link Activity} is
    * launched, but before any test code is run including any method annotated with <a
-   * href="http://junit.source.net/javadoc/org/junit/Before.html"><code>Before</code></a>.
+   * href="http://junit.sourceforge.net/javadoc/org/junit/Before.html"><code>Before</code></a>.
    *
-   * <p>Prefer <a href="http://junit.source.net/javadoc/org/junit/Before.html"><code>Before
+   * <p>Prefer <a href="http://junit.sourceforge.net/javadoc/org/junit/Before.html"><code>Before
    * </code></a> over this method. This method should usually not be overwritten directly in tests
    * and only be used by subclasses of ActivityTestRule to get notified when the activity is created
    * and visible but test runs.
@@ -252,10 +274,10 @@ public class ActivityTestRule<T extends Activity> implements TestRule {
   /**
    * Override this method to execute any code that should run after the currently launched {@link
    * Activity} is finished. This method is called after each test method, including any method
-   * annotated with <a href="http://junit.source.net/javadoc/org/junit/After.html"><code>After
+   * annotated with <a href="http://junit.sourceforge.net/javadoc/org/junit/After.html"><code>After
    * </code></a>.
    *
-   * <p>Prefer <a href="http://junit.source.net/javadoc/org/junit/After.html"><code>Before
+   * <p>Prefer <a href="http://junit.sourceforge.net/javadoc/org/junit/After.html"><code>Before
    * </code></a> over this method. This method should usually not be overwritten directly in tests
    * and only be used by subclasses of ActivityTestRule to get notified when the activity is created
    * and visible but test runs.
@@ -270,7 +292,7 @@ public class ActivityTestRule<T extends Activity> implements TestRule {
    * <p>The reference to the activity is assigned during the initial creation of the acivity and for
    * every sinlge {@link Activity#OnResumed()} lifecycle change.
    *
-   * <p><b>Note:</b> Lifecycle changes happen on the UI thread (not the instrumenation thread where
+   * <p><b>Note:</b> Lifecycle changes happen on the UI thread (not the instrumentation thread where
    * this test code usually executes). Thus, the return value may vary depending on timing.
    *
    * <p>For example, if the activity is finished and relaunched, the reference returned by this
@@ -284,7 +306,7 @@ public class ActivityTestRule<T extends Activity> implements TestRule {
    * strong reference to the acitivty and this refernce may get garbage collected.
    */
   public T getActivity() {
-    T hardActivityRef = mActivity.get();
+    T hardActivityRef = activity.get();
     if (hardActivityRef == null) {
       Log.w(TAG, "Activity wasn't created yet or already stopped");
     }
@@ -309,7 +331,7 @@ public class ActivityTestRule<T extends Activity> implements TestRule {
    *    &#064;Test
    *    public void customIntentToStartActivity() {
    *        Intent intent = new Intent(Intent.ACTION_PICK);
-   *        mActivity = mActivityRule.launchActivity(intent);
+   *        activity = mActivityRule.launchActivity(intent);
    *    }
    * </pre>
    *
@@ -325,7 +347,7 @@ public class ActivityTestRule<T extends Activity> implements TestRule {
    */
   public T launchActivity(@Nullable Intent startIntent) {
     // set initial touch mode
-    mInstrumentation.setInTouchMode(mInitialTouchMode);
+    instrumentation.setInTouchMode(initialTouchMode);
 
     // inject custom intent, if provided
     if (null == startIntent) {
@@ -340,25 +362,25 @@ public class ActivityTestRule<T extends Activity> implements TestRule {
 
     // Set target component if not set Intent
     if (null == startIntent.getComponent()) {
-      startIntent.setClassName(mTargetPackage, mActivityClass.getName());
+      startIntent.setClassName(targetPackage, activityClass.getName());
     }
 
     // Set launch flags where if not set Intent
     if (NO_FLAGS_SET == startIntent.getFlags()) {
-      startIntent.addFlags(mLaunchFlags);
+      startIntent.addFlags(launchFlags);
     }
 
     beforeActivityLaunched();
     // The following cast is correct because the activity we're creating is of the same type as
     // the one passed in
-    T hardActivityRef = mActivityClass.cast(mInstrumentation.startActivitySync(startIntent));
-    mActivity = makeWeakReference(hardActivityRef);
+    T hardActivityRef = activityClass.cast(instrumentation.startActivitySync(startIntent));
+    activity = makeWeakReference(hardActivityRef);
 
-    mInstrumentation.waitForIdleSync();
+    instrumentation.waitForIdleSync();
 
     if (hardActivityRef != null) {
       // Notify that Activity was successfully launched
-      ActivityLifecycleMonitorRegistry.getInstance().addLifecycleCallback(mLifecycleCallback);
+      ActivityLifecycleMonitorRegistry.getInstance().addLifecycleCallback(lifecycleCallback);
       afterActivityLaunched();
     } else {
       // Log an error message to logcat/instrumentation, that the Activity failed to launch
@@ -366,7 +388,7 @@ public class ActivityTestRule<T extends Activity> implements TestRule {
           String.format("Activity %s, failed to launch", startIntent.getComponent());
       Bundle bundle = new Bundle();
       bundle.putString(Instrumentation.REPORT_KEY_STREAMRESULT, TAG + " " + errorMessage);
-      mInstrumentation.sendStatus(0, bundle);
+      instrumentation.sendStatus(0, bundle);
       Log.e(TAG, errorMessage);
     }
 
@@ -375,7 +397,7 @@ public class ActivityTestRule<T extends Activity> implements TestRule {
 
   @VisibleForTesting
   void setInstrumentation(Instrumentation instrumentation) {
-    mInstrumentation = checkNotNull(instrumentation, "instrumentation cannot be null!");
+    this.instrumentation = checkNotNull(instrumentation, "instrumentation cannot be null!");
   }
 
   /**
@@ -385,11 +407,11 @@ public class ActivityTestRule<T extends Activity> implements TestRule {
    */
   public void finishActivity() {
     try {
-      if (mActivity.get() != null) {
+      if (activity.get() != null) {
         callFinishOnMainSync();
       }
     } finally {
-      mActivity = makeWeakReference(null);
+      activity = makeWeakReference(null);
       afterActivityFinished(); // TODO(b/72327935) move down to evaluate
     }
   }
@@ -397,7 +419,7 @@ public class ActivityTestRule<T extends Activity> implements TestRule {
   @VisibleForTesting
   void callFinishOnMainSync() {
     try {
-      final T hardActivityRef = mActivity.get();
+      final T hardActivityRef = activity.get();
       runOnUiThread(
           new Runnable() {
             @Override
@@ -411,7 +433,7 @@ public class ActivityTestRule<T extends Activity> implements TestRule {
               setActivityResultForActivity(hardActivityRef);
             }
           });
-      mInstrumentation.waitForIdleSync();
+      instrumentation.waitForIdleSync();
     } catch (Throwable throwable) {
       // Should never happen
       String msg = "Failed to execute activity.finish() on the main thread";
@@ -435,11 +457,11 @@ public class ActivityTestRule<T extends Activity> implements TestRule {
    * @throws IllegalStateException if the activity is not in finishing state.
    */
   public ActivityResult getActivityResult() {
-    if (null == mActivityResult) {
+    if (null == activityResult) {
       // This is required if users manually called .finish() on their activity instead of using
       // this.finishActivity(). Since .finish() is async there could be a case that our callback
       // wasn't called just yet.
-      T hardActivityRef = mActivity.get();
+      T hardActivityRef = activity.get();
       checkNotNull(hardActivityRef, "Activity wasn't created yet or already destroyed!");
       try {
         runOnUiThread(
@@ -454,7 +476,7 @@ public class ActivityTestRule<T extends Activity> implements TestRule {
         throw new IllegalStateException(throwable);
       }
     }
-    return mActivityResult;
+    return activityResult;
   }
 
   private void setActivityResultForActivity(final T activity) {
@@ -468,7 +490,7 @@ public class ActivityTestRule<T extends Activity> implements TestRule {
       Field resultDataField = Activity.class.getDeclaredField(FIELD_RESULT_DATA);
       resultDataField.setAccessible(true);
 
-      mActivityResult =
+      activityResult =
           new ActivityResult(
               (int) resultCodeField.get(activity), (Intent) resultDataField.get(activity));
     } catch (NoSuchFieldException e) {
@@ -505,37 +527,37 @@ public class ActivityTestRule<T extends Activity> implements TestRule {
    */
   private class ActivityStatement extends Statement {
 
-    private final Statement mBase;
+    private final Statement base;
 
     public ActivityStatement(Statement base) {
-      mBase = base;
+      this.base = base;
     }
 
     @Override
     public void evaluate() throws Throwable {
       MonitoringInstrumentation instrumentation =
-          ActivityTestRule.this.mInstrumentation instanceof MonitoringInstrumentation
-              ? (MonitoringInstrumentation) ActivityTestRule.this.mInstrumentation
+          ActivityTestRule.this.instrumentation instanceof MonitoringInstrumentation
+              ? (MonitoringInstrumentation) ActivityTestRule.this.instrumentation
               : null;
       try {
-        if (mActivityFactory != null && instrumentation != null) {
-          instrumentation.interceptActivityUsing(mActivityFactory);
+        if (activityFactory != null && instrumentation != null) {
+          instrumentation.interceptActivityUsing(activityFactory);
         }
-        if (mLaunchActivity) {
+        if (launchActivity) {
           launchActivity(getActivityIntent());
         }
-        mBase.evaluate();
+        base.evaluate();
       } finally {
         if (instrumentation != null) {
           instrumentation.useDefaultInterceptingActivityFactory();
         }
 
-        T hardActivityRef = mActivity.get();
+        T hardActivityRef = activity.get();
         if (hardActivityRef != null) {
           finishActivity();
         }
-        mActivityResult = null;
-        ActivityLifecycleMonitorRegistry.getInstance().removeLifecycleCallback(mLifecycleCallback);
+        activityResult = null;
+        ActivityLifecycleMonitorRegistry.getInstance().removeLifecycleCallback(lifecycleCallback);
       }
     }
   }
@@ -555,13 +577,13 @@ public class ActivityTestRule<T extends Activity> implements TestRule {
   private class LifecycleCallback implements ActivityLifecycleCallback {
     @Override
     public void onActivityLifecycleChanged(Activity activity, Stage stage) {
-      if (mActivityClass.isInstance(activity)) {
+      if (activityClass.isInstance(activity)) {
         if (Stage.RESUMED == stage) {
-          mActivity = makeWeakReference(mActivityClass.cast(activity));
+          ActivityTestRule.this.activity = makeWeakReference(activityClass.cast(activity));
         } else if (Stage.PAUSED == stage) {
           // If there is an activity result we save it
-          if (activity.isFinishing() && mActivityResult != null) {
-            setActivityResultForActivity(mActivityClass.cast(activity));
+          if (activity.isFinishing() && activityResult != null) {
+            setActivityResultForActivity(activityClass.cast(activity));
           }
         }
       }

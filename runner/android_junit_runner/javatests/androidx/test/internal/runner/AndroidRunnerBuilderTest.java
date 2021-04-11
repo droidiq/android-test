@@ -20,10 +20,10 @@ import static org.hamcrest.Matchers.typeCompatibleWith;
 import static org.junit.Assert.assertThat;
 import static org.mockito.Mockito.when;
 
+import androidx.test.ext.junit.runners.AndroidJUnit4;
 import androidx.test.filters.SmallTest;
 import androidx.test.internal.runner.junit3.JUnit38ClassRunner;
 import androidx.test.internal.util.AndroidRunnerParams;
-import androidx.test.runner.AndroidJUnit4;
 import junit.framework.TestCase;
 import junit.framework.TestSuite;
 import org.junit.Before;
@@ -37,9 +37,9 @@ import org.mockito.MockitoAnnotations;
 @SmallTest
 public class AndroidRunnerBuilderTest {
 
-  @Mock public AndroidRunnerParams mMockAndroidRunnerParams;
+  @Mock public AndroidRunnerParams mockAndroidRunnerParams;
 
-  private AndroidRunnerBuilder mAndroidRunnerBuilder;
+  private AndroidRunnerBuilder androidRunnerBuilder;
 
   public static class JUnit3Class extends TestCase {
     public void testSome() {}
@@ -59,12 +59,12 @@ public class AndroidRunnerBuilderTest {
   @Before
   public void initMocks() {
     MockitoAnnotations.initMocks(this);
-    mAndroidRunnerBuilder = new AndroidRunnerBuilder(mMockAndroidRunnerParams);
+    androidRunnerBuilder = new AndroidRunnerBuilder(mockAndroidRunnerParams);
   }
 
   @Test
   public void jUnit3SuitePicksJUnit38ClassRunner() throws Throwable {
-    Runner runner = mAndroidRunnerBuilder.runnerForClass(JUnit3Suite.class);
+    Runner runner = androidRunnerBuilder.runnerForClass(JUnit3Suite.class);
     assertThat(runner.getClass(), typeCompatibleWith(JUnit38ClassRunner.class));
   }
 
@@ -72,9 +72,9 @@ public class AndroidRunnerBuilderTest {
   public void jUnit3Suite_skippedExecutionTrue_jUnit3SuitePicksJUnit38ClassRunner()
       throws Throwable {
     // mock skip execution flag to return true
-    when(mMockAndroidRunnerParams.isSkipExecution()).thenReturn(true);
+    when(mockAndroidRunnerParams.isSkipExecution()).thenReturn(true);
 
-    Runner runner = mAndroidRunnerBuilder.runnerForClass(JUnit3Suite.class);
+    Runner runner = androidRunnerBuilder.runnerForClass(JUnit3Suite.class);
     assertThat(runner.getClass(), typeCompatibleWith(JUnit38ClassRunner.class));
   }
 }

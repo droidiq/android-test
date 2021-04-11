@@ -20,17 +20,17 @@ package androidx.test.espresso.matcher;
 import static androidx.test.espresso.util.TreeIterables.breadthFirstViewTraversal;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
-import static com.google.common.base.Preconditions.checkState;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.is;
 
 import android.content.Context;
 import android.content.res.Resources;
+import android.graphics.Color;
 import android.graphics.Rect;
 import android.os.Build;
-import android.support.annotation.NonNull;
-import android.support.annotation.Nullable;
-import android.support.annotation.VisibleForTesting;
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
+import androidx.annotation.VisibleForTesting;
 import android.util.DisplayMetrics;
 import android.util.TypedValue;
 import android.view.View;
@@ -51,15 +51,19 @@ import androidx.test.espresso.util.HumanReadables;
 import com.google.common.base.Predicate;
 import com.google.common.collect.Iterables;
 import java.util.Iterator;
+import java.util.Locale;
+import java.util.regex.Pattern;
 import junit.framework.AssertionFailedError;
 import org.hamcrest.Description;
+import org.hamcrest.Description.NullDescription;
 import org.hamcrest.Matcher;
 import org.hamcrest.Matchers;
 import org.hamcrest.StringDescription;
-import org.hamcrest.TypeSafeMatcher;
+import org.hamcrest.TypeSafeDiagnosingMatcher;
 
 /** A collection of hamcrest matchers that match {@link View}s. */
 public final class ViewMatchers {
+  private static final Pattern RESOURCE_ID_PATTERN = Pattern.compile("\\d+");
 
   private ViewMatchers() {}
 
@@ -110,29 +114,59 @@ public final class ViewMatchers {
    *     surface area of the view must be shown to the user to be accepted.
    */
   public static Matcher<View> isDisplayingAtLeast(final int areaPercentage) {
-    checkState(areaPercentage <= 100, "Cannot have over 100 percent: %s", areaPercentage);
-    checkState(areaPercentage > 0, "Must have a positive, non-zero value: %s", areaPercentage);
+    checkArgument(areaPercentage <= 100, "Cannot have over 100 percent: %s", areaPercentage);
+    checkArgument(areaPercentage > 0, "Must have a positive, non-zero value: %s", areaPercentage);
     return new IsDisplayingAtLeastMatcher(areaPercentage);
   }
 
   /** Returns a matcher that matches {@link View Views} that are enabled. */
   public static Matcher<View> isEnabled() {
-    return new IsEnabledMatcher();
+    return new IsEnabledMatcher(true);
+  }
+
+  /** Returns a matcher that matches {@link View Views} that are not enabled. */
+  public static Matcher<View> isNotEnabled() {
+    return new IsEnabledMatcher(false);
   }
 
   /** Returns a matcher that matches {@link View Views} that are focusable. */
   public static Matcher<View> isFocusable() {
-    return new IsFocusableMatcher();
+    return new IsFocusableMatcher(true);
+  }
+
+  /** Returns a matcher that matches {@link View Views} that are not focusable. */
+  public static Matcher<View> isNotFocusable() {
+    return new IsFocusableMatcher(false);
+  }
+
+  /** Returns a matcher that matches {@link View Views} that are focused. */
+  public static Matcher<View> isFocused() {
+    return new IsFocusedMatcher(true);
+  }
+
+  /** Returns a matcher that matches {@link View Views} that are not focused. */
+  public static Matcher<View> isNotFocused() {
+    return new IsFocusedMatcher(false);
   }
 
   /** Returns a matcher that matches {@link View Views} currently have focus. */
   public static Matcher<View> hasFocus() {
-    return new HasFocusMatcher();
+    return new HasFocusMatcher(true);
+  }
+
+  /** Returns a matcher that matches {@link View Views} currently do not have focus. */
+  public static Matcher<View> doesNotHaveFocus() {
+    return new HasFocusMatcher(false);
   }
 
   /** Returns a matcher that matches {@link View Views} that are selected. */
   public static Matcher<View> isSelected() {
-    return new IsSelectedMatcher();
+    return new IsSelectedMatcher(true);
+  }
+
+  /** Returns a matcher that matches {@link View Views} that are not selected. */
+  public static Matcher<View> isNotSelected() {
+    return new IsSelectedMatcher(false);
   }
 
   /**
@@ -252,7 +286,7 @@ public final class ViewMatchers {
    * @param key to match
    * @param objectMatcher Object to match
    */
-  public static Matcher<View> withTagKey(final int key, final Matcher<Object> objectMatcher) {
+  public static Matcher<View> withTagKey(final int key, final Matcher<?> objectMatcher) {
     return new WithTagKeyMatcher(key, checkNotNull(objectMatcher));
   }
 
@@ -388,7 +422,12 @@ public final class ViewMatchers {
 
   /** Returns a matcher that matches {@link View Views} that are clickable. */
   public static Matcher<View> isClickable() {
-    return new IsClickableMatcher();
+    return new IsClickableMatcher(true);
+  }
+
+  /** Returns a matcher that matches {@link View Views} that are not clickable. */
+  public static Matcher<View> isNotClickable() {
+    return new IsClickableMatcher(false);
   }
 
   /**
@@ -427,8 +466,39 @@ public final class ViewMatchers {
 
     private final int value;
 
-    private Visibility(int value) {
+    Visibility(int value) {
       this.value = value;
+    }
+
+    /**
+     * Get the {@link Visibility} enum for the current value in {@link View#getVisibility()}.
+     *
+     * @param view The view to get the visibility value for.
+     * @return The current visibility enum value.
+     * @see #forViewVisibility(int)
+     */
+    public static Visibility forViewVisibility(View view) {
+      return forViewVisibility(view.getVisibility());
+    }
+
+    /**
+     * Get the {@link Visibility} for the given visibility int. Must be one of: {@link
+     * View#VISIBLE}, {@link View#INVISIBLE}, or {@link View#GONE}.
+     *
+     * @param visibility The visibility int to lookup.
+     * @return The matching {@link Visibility} enum.
+     */
+    public static Visibility forViewVisibility(int visibility) {
+      switch (visibility) {
+        case View.VISIBLE:
+          return VISIBLE;
+        case View.INVISIBLE:
+          return INVISIBLE;
+        case View.GONE:
+          return GONE;
+        default:
+          throw new IllegalArgumentException("Invalid visibility value <" + visibility + ">");
+      }
     }
 
     public int getValue() {
@@ -525,19 +595,29 @@ public final class ViewMatchers {
   public static <T> void assertThat(String message, T actual, Matcher<T> matcher) {
     if (!matcher.matches(actual)) {
       Description description = new StringDescription();
+      String mismatchDescriptionString = getMismatchDescriptionString(actual, matcher);
       description
           .appendText(message)
           .appendText("\nExpected: ")
           .appendDescriptionOf(matcher)
-          .appendText("\n     Got: ");
+          .appendText("\n     Got: ")
+          .appendText(mismatchDescriptionString);
       if (actual instanceof View) {
-        description.appendValue(HumanReadables.describe((View) actual));
-      } else {
-        description.appendValue(actual);
+        // Get the human readable view description.
+        description
+            .appendText("\nView Details: ")
+            .appendText(HumanReadables.describe((View) actual));
       }
       description.appendText("\n");
       throw new AssertionFailedError(description.toString());
     }
+  }
+
+  private static <T> String getMismatchDescriptionString(T actual, Matcher<T> matcher) {
+    Description mismatchDescription = new StringDescription();
+    matcher.describeMismatch(actual, mismatchDescription);
+    String mismatchDescriptionString = mismatchDescription.toString().trim();
+    return mismatchDescriptionString.isEmpty() ? actual.toString() : mismatchDescriptionString;
   }
 
   /**
@@ -607,7 +687,7 @@ public final class ViewMatchers {
     return new WithParentIndexMatcher(index);
   }
 
-  static final class WithIdMatcher extends TypeSafeMatcher<View> {
+  static final class WithIdMatcher extends TypeSafeDiagnosingMatcher<View> {
 
     @VisibleForTesting
     @RemoteMsgField(order = 0)
@@ -620,29 +700,50 @@ public final class ViewMatchers {
       this.viewIdMatcher = integerMatcher;
     }
 
+    @SuppressWarnings("JdkObsolete") // java.util.regex.Matcher requires the use of StringBuffer
     @Override
     public void describeTo(Description description) {
-      String idDescription = viewIdMatcher.toString().replaceAll("\\D+", "");
-      int id = Integer.parseInt(idDescription);
-      if (resources != null) {
-        try {
-          idDescription = resources.getResourceName(id);
-        } catch (Resources.NotFoundException e) {
-          // No big deal, will just use the int value.
-          idDescription = String.format("%s (resource name not found)", idDescription);
-        }
-      }
-      description.appendText("with id: " + idDescription);
+      String id = getViewIdString(viewIdMatcher.toString());
+      description.appendText("view.getId() ").appendText(id);
     }
 
     @Override
-    public boolean matchesSafely(View view) {
+    protected boolean matchesSafely(View view, Description mismatchDescription) {
       resources = view.getResources();
-      return viewIdMatcher.matches(view.getId());
+      boolean matches = viewIdMatcher.matches(view.getId());
+      // Only log if no match is found and if the description isn't a NullDescription. This avoids
+      // a call to query the resources which may cause some issues as it logs several errors.
+      if (!matches && !(mismatchDescription instanceof NullDescription)) {
+        mismatchDescription
+            .appendText("view.getId() was ")
+            .appendText(getViewIdString("<" + view.getId() + ">"));
+      }
+      return matches;
+    }
+
+    private String getViewIdString(String idDescription) {
+      java.util.regex.Matcher matcher = RESOURCE_ID_PATTERN.matcher(idDescription);
+      StringBuffer buffer = new StringBuffer(idDescription.length());
+      while (matcher.find()) {
+        if (resources != null) {
+          String idString = matcher.group();
+          int id = Integer.parseInt(idString);
+          String resourceName = safeGetResourceName(resources, id);
+          if (resourceName != null) {
+            matcher.appendReplacement(buffer, idString + "/" + resourceName);
+          } else {
+            // No big deal, will just use the int value.
+            matcher.appendReplacement(
+                buffer, String.format(Locale.ROOT, "%s (resource name not found)", idString));
+          }
+        }
+      }
+      matcher.appendTail(buffer);
+      return buffer.toString();
     }
   }
 
-  static final class WithTextMatcher extends BoundedMatcher<View, TextView> {
+  static final class WithTextMatcher extends BoundedDiagnosingMatcher<View, TextView> {
 
     @RemoteMsgField(order = 0)
     private final Matcher<String> stringMatcher;
@@ -654,22 +755,25 @@ public final class ViewMatchers {
     }
 
     @Override
-    public void describeTo(Description description) {
-      description.appendText("with text: ");
+    protected void describeMoreTo(Description description) {
+      description.appendText("view.getText() with or without transformation to match: ");
       stringMatcher.describeTo(description);
     }
 
     @Override
-    protected boolean matchesSafely(TextView textView) {
+    protected boolean matchesSafely(TextView textView, Description mismatchDescription) {
       String text = textView.getText().toString();
-      // The reason we try to match both original text and the transformated one is because some UI
+      // The reason we try to match both original text and the transformed one is because some UI
       // elements may inherit a default theme which behave differently for SDK below 19 and above.
       // So it is implemented in a backwards compatible way.
       if (stringMatcher.matches(text)) {
         return true;
-      } else if (textView.getTransformationMethod() != null) {
+      }
+      mismatchDescription.appendText("view.getText() was ").appendValue(text);
+      if (textView.getTransformationMethod() != null) {
         CharSequence transformedText =
             textView.getTransformationMethod().getTransformation(text, textView);
+        mismatchDescription.appendText(" transformed text was ").appendValue(transformedText);
         if (transformedText != null) {
           return stringMatcher.matches(transformedText.toString());
         }
@@ -678,7 +782,7 @@ public final class ViewMatchers {
     }
   }
 
-  static final class WithResourceNameMatcher extends TypeSafeMatcher<View> {
+  static final class WithResourceNameMatcher extends TypeSafeDiagnosingMatcher<View> {
 
     @RemoteMsgField(order = 0)
     private final Matcher<String> stringMatcher;
@@ -690,49 +794,77 @@ public final class ViewMatchers {
 
     @Override
     public void describeTo(Description description) {
-      description.appendText("with res-name that ");
-      stringMatcher.describeTo(description);
+      description
+          .appendText("view.getId()'s resource name should match ")
+          .appendDescriptionOf(stringMatcher);
     }
 
     @Override
-    public boolean matchesSafely(View view) {
-      if (view.getId() == -1 || view.getResources() == null) {
+    protected boolean matchesSafely(View view, Description mismatchDescription) {
+      final int id = view.getId();
+      if (id == View.NO_ID) {
+        mismatchDescription.appendText("view.getId() was View.NO_ID");
         return false;
       }
-      try {
-        return stringMatcher.matches(view.getResources().getResourceEntryName(view.getId()));
-      } catch (Resources.NotFoundException ignore) {
+      if (view.getResources() == null) {
+        mismatchDescription.appendText("view.getResources() was null, can't resolve resource name");
         return false;
       }
+      if (isViewIdGenerated(id)) {
+        mismatchDescription.appendText(
+            "view.getId() was generated by a call to View.generateViewId()");
+        return false;
+      }
+      String resourceName = safeGetResourceEntryName(view.getResources(), view.getId());
+      if (resourceName == null) {
+        mismatchDescription
+            .appendText("view.getId() was ")
+            .appendValue(id)
+            .appendText(" which fails to resolve resource name");
+        return false;
+      }
+      if (!stringMatcher.matches(resourceName)) {
+        mismatchDescription
+            .appendText("view.getId() was <")
+            .appendText(resourceName)
+            .appendText(">");
+        return false;
+      }
+      return true;
     }
   }
 
-  static final class WithTagKeyMatcher extends TypeSafeMatcher<View> {
+  static final class WithTagKeyMatcher extends TypeSafeDiagnosingMatcher<View> {
     @RemoteMsgField(order = 0)
     private final int key;
 
     @RemoteMsgField(order = 1)
-    private final Matcher<Object> objectMatcher;
+    private final Matcher<?> objectMatcher;
 
     @RemoteMsgConstructor
-    private WithTagKeyMatcher(int key, Matcher<Object> objectMatcher) {
+    private WithTagKeyMatcher(int key, Matcher<?> objectMatcher) {
       this.key = key;
       this.objectMatcher = objectMatcher;
     }
 
     @Override
     public void describeTo(Description description) {
-      description.appendText("with key: " + key);
-      objectMatcher.describeTo(description);
+      description.appendText("view.getTag(" + key + ") ").appendDescriptionOf(objectMatcher);
     }
 
     @Override
-    public boolean matchesSafely(View view) {
-      return objectMatcher.matches(view.getTag(key));
+    protected boolean matchesSafely(View view, Description mismatchDescription) {
+      final Object tag = view.getTag(key);
+      if (!objectMatcher.matches(tag)) {
+        mismatchDescription.appendText("view.getTag(" + key + ") ");
+        objectMatcher.describeMismatch(tag, mismatchDescription);
+        return false;
+      }
+      return true;
     }
   }
 
-  static final class IsAssignableFromMatcher extends TypeSafeMatcher<View> {
+  static final class IsAssignableFromMatcher extends TypeSafeDiagnosingMatcher<View> {
     @RemoteMsgField(order = 0)
     private final Class<?> clazz;
 
@@ -743,16 +875,20 @@ public final class ViewMatchers {
 
     @Override
     public void describeTo(Description description) {
-      description.appendText("is assignable from class: " + clazz);
+      description.appendText("is assignable from class ").appendValue(clazz);
     }
 
     @Override
-    public boolean matchesSafely(View view) {
-      return clazz.isAssignableFrom(view.getClass());
+    protected boolean matchesSafely(View view, Description mismatchDescription) {
+      if (!clazz.isAssignableFrom(view.getClass())) {
+        mismatchDescription.appendText("view.getClass() was ").appendValue(view.getClass());
+        return false;
+      }
+      return true;
     }
   }
 
-  static final class WithClassNameMatcher extends TypeSafeMatcher<View> {
+  static final class WithClassNameMatcher extends TypeSafeDiagnosingMatcher<View> {
     @VisibleForTesting
     @RemoteMsgField(order = 0)
     final Matcher<String> classNameMatcher;
@@ -764,36 +900,58 @@ public final class ViewMatchers {
 
     @Override
     public void describeTo(Description description) {
-      description.appendText("with class name: ");
-      classNameMatcher.describeTo(description);
+      description
+          .appendText("view.getClass().getName() matches: ")
+          .appendDescriptionOf(classNameMatcher);
     }
 
     @Override
-    public boolean matchesSafely(View view) {
-      return classNameMatcher.matches(view.getClass().getName());
+    protected boolean matchesSafely(View view, Description mismatchDescription) {
+      final String className = view.getClass().getName();
+      if (!classNameMatcher.matches(className)) {
+        mismatchDescription.appendText("view.getClass().getName() ");
+        classNameMatcher.describeMismatch(className, mismatchDescription);
+        return false;
+      }
+      return true;
     }
   }
 
-  static final class IsDisplayedMatcher extends TypeSafeMatcher<View> {
+  static final class IsDisplayedMatcher extends TypeSafeDiagnosingMatcher<View> {
+
+    private final Matcher<View> visibilityMatcher = withEffectiveVisibility(Visibility.VISIBLE);
+
     @RemoteMsgConstructor
     private IsDisplayedMatcher() {}
 
     @Override
     public void describeTo(Description description) {
-      description.appendText("is displayed on the screen to the user");
+      description
+          .appendText("(")
+          .appendDescriptionOf(visibilityMatcher)
+          .appendText(" and view.getGlobalVisibleRect() to return non-empty rectangle)");
     }
 
     @Override
-    public boolean matchesSafely(View view) {
-      return view.getGlobalVisibleRect(new Rect())
-          && withEffectiveVisibility(Visibility.VISIBLE).matches(view);
+    protected boolean matchesSafely(View view, Description mismatchDescription) {
+      if (!visibilityMatcher.matches(view)) {
+        visibilityMatcher.describeMismatch(view, mismatchDescription);
+        return false;
+      }
+      if (!view.getGlobalVisibleRect(new Rect())) {
+        mismatchDescription.appendText("view.getGlobalVisibleRect() returned empty rectangle");
+        return false;
+      }
+      return true;
     }
   }
 
-  static final class IsDisplayingAtLeastMatcher extends TypeSafeMatcher<View> {
+  static final class IsDisplayingAtLeastMatcher extends TypeSafeDiagnosingMatcher<View> {
     @VisibleForTesting
     @RemoteMsgField(order = 0)
     final int areaPercentage;
+
+    private final Matcher<View> visibilityMatchers = withEffectiveVisibility(Visibility.VISIBLE);
 
     @RemoteMsgConstructor
     private IsDisplayingAtLeastMatcher(int areaPercentage) {
@@ -802,16 +960,28 @@ public final class ViewMatchers {
 
     @Override
     public void describeTo(Description description) {
-      description.appendText(
-          String.format(
-              "at least %s percent of the view's area is displayed to the user.", areaPercentage));
+      description
+          .appendText("(")
+          .appendDescriptionOf(visibilityMatchers)
+          .appendText(" and view.getGlobalVisibleRect() covers at least ")
+          .appendValue(areaPercentage)
+          .appendText(" percent of the view's area)");
     }
 
     @Override
-    public boolean matchesSafely(View view) {
+    protected boolean matchesSafely(View view, Description mismatchDescription) {
+      if (!visibilityMatchers.matches(view)) {
+        visibilityMatchers.describeMismatch(view, mismatchDescription);
+        return false;
+      }
+
       Rect visibleParts = new Rect();
       boolean visibleAtAll = view.getGlobalVisibleRect(visibleParts);
       if (!visibleAtAll) {
+        mismatchDescription
+            .appendText("view was ")
+            .appendValue(0)
+            .appendText(" percent visible to the user");
         return false;
       }
 
@@ -822,16 +992,22 @@ public final class ViewMatchers {
 
       if (Build.VERSION.SDK_INT >= 11) {
         // For API level 11 and above, factor in the View's scaleX and scaleY properties.
-        viewHeight = Math.min(view.getHeight() * view.getScaleY(), screen.height());
-        viewWidth = Math.min(view.getWidth() * view.getScaleX(), screen.width());
+        viewHeight = Math.min(view.getHeight() * Math.abs(view.getScaleY()), screen.height());
+        viewWidth = Math.min(view.getWidth() * Math.abs(view.getScaleX()), screen.width());
       }
 
       double maxArea = viewHeight * viewWidth;
       double visibleArea = visibleParts.height() * visibleParts.width();
       int displayedPercentage = (int) ((visibleArea / maxArea) * 100);
 
-      return displayedPercentage >= areaPercentage
-          && withEffectiveVisibility(Visibility.VISIBLE).matches(view);
+      if (displayedPercentage < areaPercentage) {
+        mismatchDescription
+            .appendText("view was ")
+            .appendValue(displayedPercentage)
+            .appendText(" percent visible to the user");
+        return false;
+      }
+      return true;
     }
 
     private Rect getScreenWithoutStatusBarActionBar(View view) {
@@ -849,7 +1025,7 @@ public final class ViewMatchers {
       // Get action bar height
       TypedValue tv = new TypedValue();
       int actionBarHeight =
-          (view.getContext().getTheme().resolveAttribute(android.R.attr.actionBarSize, tv, true))
+          view.getContext().getTheme().resolveAttribute(android.R.attr.actionBarSize, tv, true)
               ? TypedValue.complexToDimensionPixelSize(
                   tv.data, view.getContext().getResources().getDisplayMetrics())
               : 0;
@@ -858,69 +1034,136 @@ public final class ViewMatchers {
     }
   }
 
-  static final class IsEnabledMatcher extends TypeSafeMatcher<View> {
+  static final class IsEnabledMatcher extends TypeSafeDiagnosingMatcher<View> {
+    @RemoteMsgField(order = 0)
+    private final boolean isEnabled;
+
     @RemoteMsgConstructor
-    private IsEnabledMatcher() {}
+    private IsEnabledMatcher(boolean isEnabled) {
+      this.isEnabled = isEnabled;
+    }
 
     @Override
     public void describeTo(Description description) {
-      description.appendText("is enabled");
+      description.appendText("view.isEnabled() is ").appendValue(isEnabled);
     }
 
     @Override
-    public boolean matchesSafely(View view) {
-      return view.isEnabled();
+    protected boolean matchesSafely(View view, Description mismatchDescription) {
+      final boolean isEnabled = view.isEnabled();
+      if (isEnabled != this.isEnabled) {
+        mismatchDescription.appendText("view.isEnabled() was ").appendValue(isEnabled);
+        return false;
+      }
+      return true;
     }
   }
 
-  static final class IsFocusableMatcher extends TypeSafeMatcher<View> {
+  static final class IsFocusableMatcher extends TypeSafeDiagnosingMatcher<View> {
+    @RemoteMsgField(order = 0)
+    private final boolean isFocusable;
+
     @RemoteMsgConstructor
-    private IsFocusableMatcher() {}
+    private IsFocusableMatcher(boolean isFocusable) {
+      this.isFocusable = isFocusable;
+    }
 
     @Override
     public void describeTo(Description description) {
-      description.appendText("is focusable");
+      description.appendText("view.isFocusable() is ").appendValue(isFocusable);
     }
 
     @Override
-    public boolean matchesSafely(View view) {
-      return view.isFocusable();
+    protected boolean matchesSafely(View view, Description mismatchDescription) {
+      final boolean isFocusable = view.isFocusable();
+      if (isFocusable != this.isFocusable) {
+        mismatchDescription.appendText("view.isFocusable() was ").appendValue(isFocusable);
+        return false;
+      }
+      return true;
     }
   }
 
-  static final class HasFocusMatcher extends TypeSafeMatcher<View> {
+  static final class IsFocusedMatcher extends TypeSafeDiagnosingMatcher<View> {
+    @RemoteMsgField(order = 0)
+    private final boolean isFocused;
+
     @RemoteMsgConstructor
-    private HasFocusMatcher() {}
+    private IsFocusedMatcher(boolean isFocused) {
+      this.isFocused = isFocused;
+    }
 
     @Override
     public void describeTo(Description description) {
-      description.appendText("has focus on the screen to the user");
+      description.appendText("view.isFocused() is ").appendValue(isFocused);
     }
 
     @Override
-    public boolean matchesSafely(View view) {
-      return view.hasFocus();
+    protected boolean matchesSafely(View view, Description mismatchDescription) {
+      final boolean isFocused = view.isFocused();
+      if (isFocused != this.isFocused) {
+        mismatchDescription.appendText("view.isFocused() was ").appendValue(isFocused);
+        return false;
+      }
+      return true;
     }
   }
 
-  static final class IsSelectedMatcher extends TypeSafeMatcher<View> {
+  static final class HasFocusMatcher extends TypeSafeDiagnosingMatcher<View> {
+    @RemoteMsgField(order = 0)
+    private final boolean hasFocus;
+
     @RemoteMsgConstructor
-    private IsSelectedMatcher() {}
+    private HasFocusMatcher(boolean hasFocus) {
+      this.hasFocus = hasFocus;
+    }
 
     @Override
     public void describeTo(Description description) {
-      description.appendText("is selected");
+      description.appendText("view.hasFocus() is ").appendValue(hasFocus);
     }
 
     @Override
-    public boolean matchesSafely(View view) {
-      return view.isSelected();
+    protected boolean matchesSafely(View view, Description mismatchDescription) {
+      final boolean hasFocus = view.hasFocus();
+      if (hasFocus != this.hasFocus) {
+        mismatchDescription.appendText("view.hasFocus() is ").appendValue(hasFocus);
+        return false;
+      }
+      return true;
     }
   }
 
-  static final class HasSiblingMatcher extends TypeSafeMatcher<View> {
+  static final class IsSelectedMatcher extends TypeSafeDiagnosingMatcher<View> {
+    @RemoteMsgField(order = 0)
+    private final boolean isSelected;
+
+    @RemoteMsgConstructor
+    private IsSelectedMatcher(boolean isSelected) {
+      this.isSelected = isSelected;
+    }
+
+    @Override
+    public void describeTo(Description description) {
+      description.appendText("view.isSelected() is ").appendValue(isSelected);
+    }
+
+    @Override
+    protected boolean matchesSafely(View view, Description mismatchDescription) {
+      final boolean isSelected = view.isSelected();
+      if (isSelected != this.isSelected) {
+        mismatchDescription.appendText("view.isSelected() was ").appendValue(isSelected);
+        return false;
+      }
+      return true;
+    }
+  }
+
+  static final class HasSiblingMatcher extends TypeSafeDiagnosingMatcher<View> {
     @RemoteMsgField(order = 0)
     private final Matcher<View> siblingMatcher;
+
+    private final Matcher<ViewGroup> parentMatcher = Matchers.isA(ViewGroup.class);
 
     @RemoteMsgConstructor
     private HasSiblingMatcher(final Matcher<View> siblingMatcher) {
@@ -929,27 +1172,43 @@ public final class ViewMatchers {
 
     @Override
     public void describeTo(Description description) {
-      description.appendText("has sibling: ");
-      siblingMatcher.describeTo(description);
+      description
+          .appendText("(view.getParent() ")
+          .appendDescriptionOf(parentMatcher)
+          .appendText(" and has a sibling matching ")
+          .appendDescriptionOf(siblingMatcher)
+          .appendText(")");
     }
 
     @Override
-    public boolean matchesSafely(View view) {
+    protected boolean matchesSafely(View view, Description mismatchDescription) {
       ViewParent parent = view.getParent();
-      if (!(parent instanceof ViewGroup)) {
+      if (!parentMatcher.matches(parent)) {
+        mismatchDescription.appendText("view.getParent() ");
+        parentMatcher.describeMismatch(parent, mismatchDescription);
         return false;
       }
       ViewGroup parentGroup = (ViewGroup) parent;
+      if (parentGroup.getChildCount() == 1) {
+        // No siblings can exist for view.
+        mismatchDescription.appendText("no siblings found");
+        return false;
+      }
       for (int i = 0; i < parentGroup.getChildCount(); i++) {
-        if (siblingMatcher.matches(parentGroup.getChildAt(i))) {
+        View child = parentGroup.getChildAt(i);
+        if (view != child && siblingMatcher.matches(child)) {
           return true;
         }
       }
+      mismatchDescription
+          .appendText("none of the ")
+          .appendValue(parentGroup.getChildCount() - 1)
+          .appendText(" siblings match");
       return false;
     }
   }
 
-  static final class WithContentDescriptionFromIdMatcher extends TypeSafeMatcher<View> {
+  static final class WithContentDescriptionFromIdMatcher extends TypeSafeDiagnosingMatcher<View> {
 
     @RemoteMsgField(order = 0)
     private final int resourceId;
@@ -964,39 +1223,44 @@ public final class ViewMatchers {
 
     @Override
     public void describeTo(Description description) {
-      description.appendText("with content description from resource id: ");
-      description.appendValue(resourceId);
-      if (null != this.resourceName) {
-        description.appendText("[");
-        description.appendText(resourceName);
-        description.appendText("]");
+      description
+          .appendText("view.getContentDescription() to match resource id ")
+          .appendValue(resourceId);
+      if (resourceName != null) {
+        description.appendText("[").appendText(resourceName).appendText("]");
       }
-      if (null != this.expectedText) {
-        description.appendText(" value: ");
-        description.appendText(expectedText);
+      if (expectedText != null) {
+        description.appendText(" with value ").appendValue(expectedText);
       }
     }
 
     @Override
-    public boolean matchesSafely(View view) {
+    protected boolean matchesSafely(View view, Description mismatchDescription) {
       if (null == this.expectedText) {
         try {
           expectedText = view.getResources().getString(resourceId);
-          resourceName = view.getResources().getResourceEntryName(resourceId);
         } catch (Resources.NotFoundException ignored) {
           // view could be from a context unaware of the resource id.
         }
+        resourceName = safeGetResourceEntryName(view.getResources(), resourceId);
       }
-      if (null != expectedText && null != view.getContentDescription()) {
-        return expectedText.equals(view.getContentDescription().toString());
-      } else {
+      if (expectedText == null) {
+        mismatchDescription.appendText("Failed to resolve resource id ").appendValue(resourceId);
         return false;
       }
+      final CharSequence contentDescription = view.getContentDescription();
+      if (contentDescription == null || !expectedText.contentEquals(contentDescription)) {
+        mismatchDescription
+            .appendText("view.getContentDescription() was ")
+            .appendValue(contentDescription);
+        return false;
+      }
+      return true;
     }
   }
 
   @VisibleForTesting
-  static final class WithContentDescriptionMatcher extends TypeSafeMatcher<View> {
+  static final class WithContentDescriptionMatcher extends TypeSafeDiagnosingMatcher<View> {
     @RemoteMsgField(order = 0)
     private final Matcher<? extends CharSequence> charSequenceMatcher;
 
@@ -1007,18 +1271,25 @@ public final class ViewMatchers {
 
     @Override
     public void describeTo(Description description) {
-      description.appendText("with content description: ");
-      charSequenceMatcher.describeTo(description);
+      description
+          .appendText("view.getContentDescription() ")
+          .appendDescriptionOf(charSequenceMatcher);
     }
 
     @Override
-    public boolean matchesSafely(View view) {
-      return charSequenceMatcher.matches(view.getContentDescription());
+    protected boolean matchesSafely(View view, Description mismatchDescription) {
+      final CharSequence contentDescription = view.getContentDescription();
+      if (!charSequenceMatcher.matches(contentDescription)) {
+        mismatchDescription.appendText("view.getContentDescription() ");
+        charSequenceMatcher.describeMismatch(contentDescription, mismatchDescription);
+        return false;
+      }
+      return true;
     }
   }
 
   @VisibleForTesting
-  static final class WithContentDescriptionTextMatcher extends TypeSafeMatcher<View> {
+  static final class WithContentDescriptionTextMatcher extends TypeSafeDiagnosingMatcher<View> {
     @RemoteMsgField(order = 0)
     private final Matcher<String> textMatcher;
 
@@ -1029,20 +1300,24 @@ public final class ViewMatchers {
 
     @Override
     public void describeTo(Description description) {
-      description.appendText("with content description text: ");
-      textMatcher.describeTo(description);
+      description.appendText("view.getContentDescription() ").appendDescriptionOf(textMatcher);
     }
 
     @Override
-    public boolean matchesSafely(View view) {
+    protected boolean matchesSafely(View view, Description mismatchDescription) {
       String descriptionText =
           (view.getContentDescription() != null) ? view.getContentDescription().toString() : null;
-      return textMatcher.matches(descriptionText);
+      if (!textMatcher.matches(descriptionText)) {
+        mismatchDescription.appendText("view.getContentDescription() ");
+        textMatcher.describeMismatch(descriptionText, mismatchDescription);
+        return false;
+      }
+      return true;
     }
   }
 
   @VisibleForTesting
-  static final class WithTagValueMatcher extends TypeSafeMatcher<View> {
+  static final class WithTagValueMatcher extends TypeSafeDiagnosingMatcher<View> {
     @RemoteMsgField(order = 0)
     private final Matcher<Object> tagValueMatcher;
 
@@ -1053,18 +1328,23 @@ public final class ViewMatchers {
 
     @Override
     public void describeTo(Description description) {
-      description.appendText("with tag value: ");
-      tagValueMatcher.describeTo(description);
+      description.appendText("view.getTag() ").appendDescriptionOf(tagValueMatcher);
     }
 
     @Override
-    public boolean matchesSafely(View view) {
-      return tagValueMatcher.matches(view.getTag());
+    protected boolean matchesSafely(View view, Description mismatchDescription) {
+      final Object tag = view.getTag();
+      if (!tagValueMatcher.matches(tag)) {
+        mismatchDescription.appendText("view.getTag() ");
+        tagValueMatcher.describeMismatch(tag, mismatchDescription);
+        return false;
+      }
+      return true;
     }
   }
 
   @VisibleForTesting
-  static final class WithCharSequenceMatcher extends BoundedMatcher<View, TextView> {
+  static final class WithCharSequenceMatcher extends BoundedDiagnosingMatcher<View, TextView> {
     @RemoteMsgField(order = 0)
     private final int resourceId;
 
@@ -1087,10 +1367,18 @@ public final class ViewMatchers {
     }
 
     @Override
-    public void describeTo(Description description) {
-      description.appendText("with string from resource id: ").appendValue(resourceId);
+    protected void describeMoreTo(Description description) {
+      switch (method) {
+        case GET_TEXT:
+          description.appendText("view.getText()");
+          break;
+        case GET_HINT:
+          description.appendText("view.getHint()");
+          break;
+      }
+      description.appendText(" equals string from resource id: ").appendValue(resourceId);
       if (null != resourceName) {
-        description.appendText("[").appendText(resourceName).appendText("]");
+        description.appendText(" [").appendText(resourceName).appendText("]");
       }
       if (null != expectedText) {
         description.appendText(" value: ").appendText(expectedText);
@@ -1098,35 +1386,36 @@ public final class ViewMatchers {
     }
 
     @Override
-    public boolean matchesSafely(TextView textView) {
+    protected boolean matchesSafely(TextView textView, Description mismatchDescription) {
       if (null == expectedText) {
         try {
           expectedText = textView.getResources().getString(resourceId);
-          resourceName = textView.getResources().getResourceEntryName(resourceId);
         } catch (Resources.NotFoundException ignored) {
           /* view could be from a context unaware of the resource id. */
         }
+        resourceName = safeGetResourceEntryName(textView.getResources(), resourceId);
       }
       CharSequence actualText;
       switch (method) {
         case GET_TEXT:
           actualText = textView.getText();
+          mismatchDescription.appendText("view.getText() was ");
           break;
         case GET_HINT:
           actualText = textView.getHint();
+          mismatchDescription.appendText("view.getHint() was ");
           break;
         default:
-          throw new IllegalStateException("Unexpected TextView method: " + method.toString());
+          throw new IllegalStateException("Unexpected TextView method: " + method);
       }
+      mismatchDescription.appendValue(actualText);
       // FYI: actualText may not be string ... its just a char sequence convert to string.
-      return null != expectedText
-          && null != actualText
-          && expectedText.equals(actualText.toString());
+      return null != expectedText && null != actualText && expectedText.contentEquals(actualText);
     }
   }
 
   @VisibleForTesting
-  static final class WithHintMatcher extends BoundedMatcher<View, TextView> {
+  static final class WithHintMatcher extends BoundedDiagnosingMatcher<View, TextView> {
     @RemoteMsgField(order = 0)
     private final Matcher<String> stringMatcher;
 
@@ -1137,20 +1426,22 @@ public final class ViewMatchers {
     }
 
     @Override
-    public void describeTo(Description description) {
-      description.appendText("with hint: ");
+    protected void describeMoreTo(Description description) {
+      description.appendText("view.getHint() matching: ");
       stringMatcher.describeTo(description);
     }
 
     @Override
-    public boolean matchesSafely(TextView textView) {
-      return stringMatcher.matches(textView.getHint());
+    protected boolean matchesSafely(TextView textView, Description mismatchDescription) {
+      CharSequence hint = textView.getHint();
+      mismatchDescription.appendText("view.getHint() was ").appendValue(hint);
+      return stringMatcher.matches(hint);
     }
   }
 
   @VisibleForTesting
   static final class WithCheckBoxStateMatcher<E extends View & Checkable>
-      extends BoundedMatcher<View, E> {
+      extends BoundedDiagnosingMatcher<View, E> {
     @RemoteMsgField(order = 0)
     private final Matcher<Boolean> checkStateMatcher;
 
@@ -1161,37 +1452,44 @@ public final class ViewMatchers {
     }
 
     @Override
-    public void describeTo(Description description) {
-      description.appendText("with checkbox state: ");
-      checkStateMatcher.describeTo(description);
+    protected void describeMoreTo(Description description) {
+      description.appendText("view.isChecked() matching: ").appendDescriptionOf(checkStateMatcher);
     }
 
     @Override
-    public boolean matchesSafely(E checkable) {
-      return checkStateMatcher.matches(checkable.isChecked());
+    protected boolean matchesSafely(E checkable, Description mismatchDescription) {
+      boolean isChecked = checkable.isChecked();
+      mismatchDescription.appendText("view.isChecked() was ").appendValue(isChecked);
+      return checkStateMatcher.matches(isChecked);
     }
   }
 
   @VisibleForTesting
-  static final class HasContentDescriptionMatcher extends TypeSafeMatcher<View> {
+  static final class HasContentDescriptionMatcher extends TypeSafeDiagnosingMatcher<View> {
     @RemoteMsgConstructor
     private HasContentDescriptionMatcher() {}
 
     @Override
     public void describeTo(Description description) {
-      description.appendText("has content description");
+      description.appendText("view.getContentDescription() is not null");
     }
 
     @Override
-    public boolean matchesSafely(View view) {
-      return view.getContentDescription() != null;
+    protected boolean matchesSafely(View view, Description mismatchDescription) {
+      if (view.getContentDescription() == null) {
+        mismatchDescription.appendText("view.getContentDescription() was null");
+        return false;
+      }
+      return true;
     }
   }
 
   @VisibleForTesting
-  static final class HasDescendantMatcher extends TypeSafeMatcher<View> {
+  static final class HasDescendantMatcher extends TypeSafeDiagnosingMatcher<View> {
     @RemoteMsgField(order = 0)
     private final Matcher<View> descendantMatcher;
+
+    private final Matcher<ViewGroup> isViewGroupMatcher = Matchers.isA(ViewGroup.class);
 
     @RemoteMsgConstructor
     private HasDescendantMatcher(Matcher<View> descendantMatcher) {
@@ -1200,45 +1498,67 @@ public final class ViewMatchers {
 
     @Override
     public void describeTo(Description description) {
-      description.appendText("has descendant: ");
-      descendantMatcher.describeTo(description);
+      description
+          .appendText("(view ")
+          .appendDescriptionOf(isViewGroupMatcher)
+          .appendText(" and has descendant matching ")
+          .appendDescriptionOf(descendantMatcher)
+          .appendText(")");
     }
 
     @Override
-    public boolean matchesSafely(final View view) {
+    protected boolean matchesSafely(final View view, Description mismatchDescription) {
+      if (!isViewGroupMatcher.matches(view)) {
+        mismatchDescription.appendText("view ");
+        isViewGroupMatcher.describeMismatch(view, mismatchDescription);
+        return false;
+      }
+
       final Predicate<View> matcherPredicate =
-          new Predicate<View>() {
-            @Override
-            public boolean apply(View input) {
-              return input != view && descendantMatcher.matches(input);
-            }
-          };
+          input -> input != view && descendantMatcher.matches(input);
 
       Iterator<View> matchedViewIterator =
           Iterables.filter(breadthFirstViewTraversal(view), matcherPredicate).iterator();
 
-      return matchedViewIterator.hasNext();
+      if (!matchedViewIterator.hasNext()) {
+        mismatchDescription
+            .appendText("no descendant matching ")
+            .appendDescriptionOf(descendantMatcher)
+            .appendText(" was found");
+        return false;
+      }
+      return true;
     }
   }
 
   @VisibleForTesting
-  static final class IsClickableMatcher extends TypeSafeMatcher<View> {
+  static final class IsClickableMatcher extends TypeSafeDiagnosingMatcher<View> {
+    @RemoteMsgField(order = 0)
+    private final boolean isClickable;
+
     @RemoteMsgConstructor
-    private IsClickableMatcher() {}
+    private IsClickableMatcher(boolean isClickable) {
+      this.isClickable = isClickable;
+    }
 
     @Override
     public void describeTo(Description description) {
-      description.appendText("is clickable");
+      description.appendText("view.isClickable() is ").appendValue(isClickable);
     }
 
     @Override
-    public boolean matchesSafely(View view) {
-      return view.isClickable();
+    protected boolean matchesSafely(View view, Description mismatchDescription) {
+      final boolean isClickable = view.isClickable();
+      if (isClickable != this.isClickable) {
+        mismatchDescription.appendText("view.isClickable() was ").appendValue(isClickable);
+        return false;
+      }
+      return true;
     }
   }
 
   @VisibleForTesting
-  static final class IsDescendantOfAMatcher extends TypeSafeMatcher<View> {
+  static final class IsDescendantOfAMatcher extends TypeSafeDiagnosingMatcher<View> {
     @RemoteMsgField(order = 0)
     private final Matcher<View> ancestorMatcher;
 
@@ -1249,28 +1569,35 @@ public final class ViewMatchers {
 
     @Override
     public void describeTo(Description description) {
-      description.appendText("is descendant of a: ");
-      ancestorMatcher.describeTo(description);
+      description
+          .appendText("is descendant of a view matching ")
+          .appendDescriptionOf(ancestorMatcher);
     }
 
     @Override
-    public boolean matchesSafely(View view) {
-      return checkAncestors(view.getParent(), ancestorMatcher);
+    protected boolean matchesSafely(View view, Description mismatchDescription) {
+      boolean matches = checkAncestors(view.getParent());
+      if (!matches) {
+        mismatchDescription
+            .appendText("none of the ancestors match ")
+            .appendDescriptionOf(ancestorMatcher);
+      }
+      return matches;
     }
 
-    private boolean checkAncestors(ViewParent viewParent, Matcher<View> ancestorMatcher) {
+    private boolean checkAncestors(ViewParent viewParent) {
       if (!(viewParent instanceof View)) {
         return false;
       }
       if (ancestorMatcher.matches(viewParent)) {
         return true;
       }
-      return checkAncestors(viewParent.getParent(), ancestorMatcher);
+      return checkAncestors(viewParent.getParent());
     }
   }
 
   @VisibleForTesting
-  static final class WithEffectiveVisibilityMatcher extends TypeSafeMatcher<View> {
+  static final class WithEffectiveVisibilityMatcher extends TypeSafeDiagnosingMatcher<View> {
     @RemoteMsgField(order = 0)
     private final Visibility visibility;
 
@@ -1281,18 +1608,26 @@ public final class ViewMatchers {
 
     @Override
     public void describeTo(Description description) {
-      description.appendText(String.format("view has effective visibility=%s", visibility));
+      description.appendText("view has effective visibility ").appendValue(visibility);
     }
 
     @Override
-    public boolean matchesSafely(View view) {
+    protected boolean matchesSafely(View view, Description mismatchDescription) {
       if (visibility.getValue() == View.VISIBLE) {
         if (view.getVisibility() != visibility.getValue()) {
+          mismatchDescription
+              .appendText("view.getVisibility() was ")
+              .appendValue(Visibility.forViewVisibility(view));
           return false;
         }
-        while (view.getParent() != null && view.getParent() instanceof View) {
+        while (view.getParent() instanceof View) {
           view = (View) view.getParent();
           if (view.getVisibility() != visibility.getValue()) {
+            mismatchDescription
+                .appendText("ancestor ")
+                .appendValue(view)
+                .appendText("'s getVisibility() was ")
+                .appendValue(Visibility.forViewVisibility(view));
             return false;
           }
         }
@@ -1301,12 +1636,15 @@ public final class ViewMatchers {
         if (view.getVisibility() == visibility.getValue()) {
           return true;
         }
-        while (view.getParent() != null && view.getParent() instanceof View) {
+        while (view.getParent() instanceof View) {
           view = (View) view.getParent();
           if (view.getVisibility() == visibility.getValue()) {
             return true;
           }
         }
+        mismatchDescription
+            .appendText("neither view nor its ancestors have getVisibility() set to ")
+            .appendValue(visibility);
         return false;
       }
     }
@@ -1332,11 +1670,11 @@ public final class ViewMatchers {
    */
   @Beta
   public static Matcher<View> hasTextColor(final int colorResId) {
-    return new BoundedMatcher<View, TextView>(TextView.class) {
+    return new BoundedDiagnosingMatcher<View, TextView>(TextView.class) {
       private Context context;
 
       @Override
-      protected boolean matchesSafely(TextView textView) {
+      protected boolean matchesSafely(TextView textView, Description mismatchDescription) {
         context = textView.getContext();
         int textViewColor = textView.getCurrentTextColor();
         int expectedColor;
@@ -1347,23 +1685,36 @@ public final class ViewMatchers {
           expectedColor = context.getColor(colorResId);
         }
 
+        mismatchDescription
+            .appendText("textView.getCurrentTextColor() was ")
+            .appendText(getColorHex(textViewColor));
         return textViewColor == expectedColor;
       }
 
       @Override
-      public void describeTo(Description description) {
-        String colorId = String.valueOf(colorResId);
-        if (context != null) {
-          colorId = context.getResources().getResourceName(colorResId);
+      protected void describeMoreTo(Description description) {
+        description.appendText("textView.getCurrentTextColor() is color with ");
+        if (context == null) {
+          description.appendText("ID ").appendValue(colorResId);
+        } else {
+          int color =
+              (Build.VERSION.SDK_INT <= 22)
+                  ? context.getResources().getColor(colorResId)
+                  : context.getColor(colorResId);
+          description.appendText("value " + getColorHex(color));
         }
-        description.appendText("has color with ID " + colorId);
+      }
+
+      private String getColorHex(int color) {
+        return String.format(
+            Locale.ROOT, "#%02X%06X", (0xFF & Color.alpha(color)), (0xFFFFFF & color));
       }
     };
   }
 
 
   @VisibleForTesting
-  static final class WithAlphaMatcher extends TypeSafeMatcher<View> {
+  static final class WithAlphaMatcher extends TypeSafeDiagnosingMatcher<View> {
     @RemoteMsgField(order = 0)
     private final float alpha;
 
@@ -1374,17 +1725,22 @@ public final class ViewMatchers {
 
     @Override
     public void describeTo(Description description) {
-      description.appendText("has alpha: ").appendValue(alpha);
+      description.appendText("view.getAlpha() is ").appendValue(alpha);
     }
 
     @Override
-    public boolean matchesSafely(View view) {
-      return view.getAlpha() == alpha;
+    protected boolean matchesSafely(View view, Description mismatchDescription) {
+      final float alpha = view.getAlpha();
+      if (alpha != this.alpha) {
+        mismatchDescription.appendText("view.getAlpha() was ").appendValue(alpha);
+        return false;
+      }
+      return true;
     }
   }
 
   @VisibleForTesting
-  static final class WithParentMatcher extends TypeSafeMatcher<View> {
+  static final class WithParentMatcher extends TypeSafeDiagnosingMatcher<View> {
     @RemoteMsgField(order = 0)
     private final Matcher<View> parentMatcher;
 
@@ -1395,20 +1751,27 @@ public final class ViewMatchers {
 
     @Override
     public void describeTo(Description description) {
-      description.appendText("has parent matching: ");
-      parentMatcher.describeTo(description);
+      description.appendText("view.getParent() ").appendDescriptionOf(parentMatcher);
     }
 
     @Override
-    public boolean matchesSafely(View view) {
-      return parentMatcher.matches(view.getParent());
+    protected boolean matchesSafely(View view, Description mismatchDescription) {
+      final ViewParent parent = view.getParent();
+      if (!parentMatcher.matches(parent)) {
+        mismatchDescription.appendText("view.getParent() ");
+        parentMatcher.describeMismatch(parent, mismatchDescription);
+        return false;
+      }
+      return true;
     }
   }
 
   @VisibleForTesting
-  static final class WithChildMatcher extends TypeSafeMatcher<View> {
+  static final class WithChildMatcher extends TypeSafeDiagnosingMatcher<View> {
     @RemoteMsgField(order = 0)
     private final Matcher<View> childMatcher;
+
+    private final Matcher<ViewGroup> viewGroupMatcher = Matchers.isA(ViewGroup.class);
 
     @RemoteMsgConstructor
     private WithChildMatcher(Matcher<View> childMatcher) {
@@ -1417,13 +1780,19 @@ public final class ViewMatchers {
 
     @Override
     public void describeTo(Description description) {
-      description.appendText("has child: ");
-      childMatcher.describeTo(description);
+      description
+          .appendText("(view ")
+          .appendDescriptionOf(viewGroupMatcher)
+          .appendText(" and has child matching: ")
+          .appendDescriptionOf(childMatcher)
+          .appendText(")");
     }
 
     @Override
-    public boolean matchesSafely(View view) {
-      if (!(view instanceof ViewGroup)) {
+    protected boolean matchesSafely(View view, Description mismatchDescription) {
+      if (!viewGroupMatcher.matches(view)) {
+        mismatchDescription.appendText("view ");
+        viewGroupMatcher.describeMismatch(view, mismatchDescription);
         return false;
       }
 
@@ -1434,12 +1803,16 @@ public final class ViewMatchers {
         }
       }
 
+      mismatchDescription
+          .appendText("All ")
+          .appendValue(group.getChildCount())
+          .appendText(" children did not match");
       return false;
     }
   }
 
   @VisibleForTesting
-  static final class HasChildCountMatcher extends BoundedMatcher<View, ViewGroup> {
+  static final class HasChildCountMatcher extends BoundedDiagnosingMatcher<View, ViewGroup> {
     @RemoteMsgField(order = 0)
     private final int childCount;
 
@@ -1450,18 +1823,21 @@ public final class ViewMatchers {
     }
 
     @Override
-    public void describeTo(Description description) {
-      description.appendText("has child count: ").appendValue(childCount);
+    protected void describeMoreTo(Description description) {
+      description.appendText("viewGroup.getChildCount() to be ").appendValue(childCount);
     }
 
     @Override
-    public boolean matchesSafely(ViewGroup viewGroup) {
+    protected boolean matchesSafely(ViewGroup viewGroup, Description mismatchDescription) {
+      mismatchDescription
+          .appendText("viewGroup.getChildCount() was ")
+          .appendValue(viewGroup.getChildCount());
       return viewGroup.getChildCount() == childCount;
     }
   }
 
   @VisibleForTesting
-  static final class HasMinimumChildCountMatcher extends BoundedMatcher<View, ViewGroup> {
+  static final class HasMinimumChildCountMatcher extends BoundedDiagnosingMatcher<View, ViewGroup> {
     @RemoteMsgField(order = 0)
     private final int minChildCount;
 
@@ -1472,53 +1848,67 @@ public final class ViewMatchers {
     }
 
     @Override
-    public void describeTo(Description description) {
-      description.appendText("has minimum child count: ").appendValue(minChildCount);
+    protected void describeMoreTo(Description description) {
+      description
+          .appendText("viewGroup.getChildCount() to be at least ")
+          .appendValue(minChildCount);
     }
 
     @Override
-    public boolean matchesSafely(ViewGroup viewGroup) {
+    protected boolean matchesSafely(ViewGroup viewGroup, Description mismatchDescription) {
+      mismatchDescription
+          .appendText("viewGroup.getChildCount() was ")
+          .appendValue(viewGroup.getChildCount());
       return viewGroup.getChildCount() >= minChildCount;
     }
   }
 
   @VisibleForTesting
-  static final class IsRootMatcher extends TypeSafeMatcher<View> {
+  static final class IsRootMatcher extends TypeSafeDiagnosingMatcher<View> {
     @RemoteMsgConstructor
     private IsRootMatcher() {}
 
     @Override
     public void describeTo(Description description) {
-      description.appendText("is a root view.");
+      description.appendText("view.getRootView() to equal view");
     }
 
     @Override
-    public boolean matchesSafely(View view) {
-      return view.getRootView().equals(view);
+    protected boolean matchesSafely(View view, Description mismatchDescription) {
+      final View rootView = view.getRootView();
+      if (rootView != view) {
+        mismatchDescription.appendText("view.getRootView() was ").appendValue(rootView);
+        return false;
+      }
+      return true;
     }
   }
 
   @VisibleForTesting
-  static final class SupportsInputMethodsMatcher extends TypeSafeMatcher<View> {
+  static final class SupportsInputMethodsMatcher extends TypeSafeDiagnosingMatcher<View> {
     @RemoteMsgConstructor
     private SupportsInputMethodsMatcher() {}
 
     @Override
     public void describeTo(Description description) {
-      description.appendText("supports input methods");
+      description.appendText("view.onCreateInputConnection() is not null");
     }
 
     @Override
-    public boolean matchesSafely(View view) {
+    protected boolean matchesSafely(View view, Description mismatchDescription) {
       // At first glance, it would make sense to use view.onCheckIsTextEditor, but the android
       // javadoc is wishy-washy about whether authors are required to implement this method when
       // implementing onCreateInputConnection.
-      return view.onCreateInputConnection(new EditorInfo()) != null;
+      if (view.onCreateInputConnection(new EditorInfo()) == null) {
+        mismatchDescription.appendText("view.onCreateInputConnection() was null");
+        return false;
+      }
+      return true;
     }
   }
 
   @VisibleForTesting
-  static final class HasImeActionMatcher extends TypeSafeMatcher<View> {
+  static final class HasImeActionMatcher extends TypeSafeDiagnosingMatcher<View> {
     @RemoteMsgField(order = 0)
     private final Matcher<Integer> imeActionMatcher;
 
@@ -1529,47 +1919,58 @@ public final class ViewMatchers {
 
     @Override
     public void describeTo(Description description) {
-      description.appendText("has ime action: ");
-      imeActionMatcher.describeTo(description);
+      description
+          .appendText("(view.onCreateInputConnection() is not null and editorInfo.actionId ")
+          .appendDescriptionOf(imeActionMatcher)
+          .appendText(")");
     }
 
     @Override
-    public boolean matchesSafely(View view) {
+    protected boolean matchesSafely(View view, Description mismatchDescription) {
       EditorInfo editorInfo = new EditorInfo();
       InputConnection inputConnection = view.onCreateInputConnection(editorInfo);
       if (inputConnection == null) {
+        mismatchDescription.appendText("view.onCreateInputConnection() was null");
         return false;
       }
       int actionId =
           editorInfo.actionId != 0
               ? editorInfo.actionId
               : editorInfo.imeOptions & EditorInfo.IME_MASK_ACTION;
-      return imeActionMatcher.matches(actionId);
+      if (!imeActionMatcher.matches(actionId)) {
+        mismatchDescription.appendText("editorInfo.actionId ");
+        imeActionMatcher.describeMismatch(actionId, mismatchDescription);
+        return false;
+      }
+      return true;
     }
   }
 
   @VisibleForTesting
-  static final class HasLinksMatcher extends BoundedMatcher<View, TextView> {
+  static final class HasLinksMatcher extends BoundedDiagnosingMatcher<View, TextView> {
     @RemoteMsgConstructor
     private HasLinksMatcher() {
       super(TextView.class);
     }
 
     @Override
-    public void describeTo(Description description) {
-      description.appendText("has links");
+    protected void describeMoreTo(Description description) {
+      description.appendText("textView.getUrls().length > 0");
     }
 
     @Override
-    public boolean matchesSafely(TextView textView) {
+    protected boolean matchesSafely(TextView textView, Description mismatchDescription) {
+      mismatchDescription
+          .appendText("textView.getUrls().length was ")
+          .appendValue(textView.getUrls().length);
       return textView.getUrls().length > 0;
     }
   }
 
   @VisibleForTesting
-  static final class WithSpinnerTextIdMatcher extends BoundedMatcher<View, Spinner> {
+  static final class WithSpinnerTextIdMatcher extends BoundedDiagnosingMatcher<View, Spinner> {
     @RemoteMsgField(order = 0)
-    private int resourceId;
+    private final int resourceId;
 
     private String resourceName = null;
     private String expectedText = null;
@@ -1581,44 +1982,50 @@ public final class ViewMatchers {
     }
 
     @Override
-    public void describeTo(Description description) {
-      description.appendText("with string from resource id: ");
-      description.appendValue(resourceId);
-      if (null != this.resourceName) {
-        description.appendText("[");
-        description.appendText(this.resourceName);
-        description.appendText("]");
+    protected void describeMoreTo(Description description) {
+      description
+          .appendText("spinner.getSelectedItem().toString() to match string from resource id: ")
+          .appendValue(resourceId);
+      if (resourceName != null) {
+        description.appendText(" [").appendText(resourceName).appendText("]");
       }
-      if (null != this.expectedText) {
-        description.appendText(" value: ");
-        description.appendText(this.expectedText);
+      if (expectedText != null) {
+        description.appendText(" value: ").appendText(expectedText);
       }
     }
 
     @Override
-    public boolean matchesSafely(Spinner spinner) {
-      if (null == this.expectedText) {
+    protected boolean matchesSafely(Spinner spinner, Description mismatchDescription) {
+      if (expectedText == null) {
         try {
-          this.expectedText = spinner.getResources().getString(resourceId);
-          this.resourceName = spinner.getResources().getResourceEntryName(resourceId);
+          expectedText = spinner.getResources().getString(resourceId);
         } catch (Resources.NotFoundException ignored) {
           /*
            * view could be from a context unaware of the resource id.
            */
         }
+        resourceName = safeGetResourceEntryName(spinner.getResources(), resourceId);
       }
-      if (null != this.expectedText) {
-        return this.expectedText.equals(spinner.getSelectedItem().toString());
-      } else {
+      if (expectedText == null) {
+        mismatchDescription.appendText("failure to resolve resourceId ").appendValue(resourceId);
         return false;
       }
+      Object selectedItem = spinner.getSelectedItem();
+      if (selectedItem == null) {
+        mismatchDescription.appendText("spinner.getSelectedItem() was null");
+        return false;
+      }
+      mismatchDescription
+          .appendText("spinner.getSelectedItem().toString() was ")
+          .appendValue(selectedItem.toString());
+      return expectedText.equals(selectedItem.toString());
     }
   }
 
   @VisibleForTesting
-  static final class WithSpinnerTextMatcher extends BoundedMatcher<View, Spinner> {
+  static final class WithSpinnerTextMatcher extends BoundedDiagnosingMatcher<View, Spinner> {
     @RemoteMsgField(order = 0)
-    private Matcher<String> stringMatcher;
+    private final Matcher<String> stringMatcher;
 
     @RemoteMsgConstructor
     private WithSpinnerTextMatcher(Matcher<String> stringMatcher) {
@@ -1627,39 +2034,51 @@ public final class ViewMatchers {
     }
 
     @Override
-    public void describeTo(Description description) {
-      description.appendText("with text: ");
-      stringMatcher.describeTo(description);
+    protected void describeMoreTo(Description description) {
+      description
+          .appendText("spinner.getSelectedItem().toString() to match ")
+          .appendDescriptionOf(stringMatcher);
     }
 
     @Override
-    public boolean matchesSafely(Spinner spinner) {
+    protected boolean matchesSafely(Spinner spinner, Description mismatchDescription) {
+      Object selectedItem = spinner.getSelectedItem();
+      if (selectedItem == null) {
+        mismatchDescription.appendText("spinner.getSelectedItem() was null");
+        return false;
+      }
+      mismatchDescription
+          .appendText("spinner.getSelectedItem().toString() was ")
+          .appendValue(selectedItem.toString());
       return stringMatcher.matches(spinner.getSelectedItem().toString());
     }
   }
 
   @VisibleForTesting
-  static final class IsJavascriptEnabledMatcher extends BoundedMatcher<View, WebView> {
+  static final class IsJavascriptEnabledMatcher extends BoundedDiagnosingMatcher<View, WebView> {
     @RemoteMsgConstructor
     private IsJavascriptEnabledMatcher() {
       super(WebView.class);
     }
 
     @Override
-    public void describeTo(Description description) {
-      description.appendText("WebView with JS enabled");
+    protected void describeMoreTo(Description description) {
+      description.appendText("webView.getSettings().getJavaScriptEnabled() is ").appendValue(true);
     }
 
     @Override
-    public boolean matchesSafely(WebView webView) {
+    protected boolean matchesSafely(WebView webView, Description mismatchDescription) {
+      mismatchDescription
+          .appendText("webView.getSettings().getJavaScriptEnabled() was ")
+          .appendValue(webView.getSettings().getJavaScriptEnabled());
       return webView.getSettings().getJavaScriptEnabled();
     }
   }
 
   @VisibleForTesting
-  static final class HasErrorTextMatcher extends BoundedMatcher<View, EditText> {
+  static final class HasErrorTextMatcher extends BoundedDiagnosingMatcher<View, EditText> {
     @RemoteMsgField(order = 0)
-    private Matcher<String> stringMatcher;
+    private final Matcher<String> stringMatcher;
 
     @RemoteMsgConstructor
     private HasErrorTextMatcher(Matcher<String> stringMatcher) {
@@ -1668,21 +2087,21 @@ public final class ViewMatchers {
     }
 
     @Override
-    public void describeTo(Description description) {
-      description.appendText("with error: ");
-      stringMatcher.describeTo(description);
+    protected void describeMoreTo(Description description) {
+      description.appendText("editText.getError() to match ").appendDescriptionOf(stringMatcher);
     }
 
     @Override
-    protected boolean matchesSafely(EditText view) {
+    protected boolean matchesSafely(EditText view, Description mismatchDescription) {
+      mismatchDescription.appendText("editText.getError() was ").appendValue(view.getError());
       return stringMatcher.matches(view.getError());
     }
   }
 
   @VisibleForTesting
-  static final class WithInputTypeMatcher extends BoundedMatcher<View, EditText> {
+  static final class WithInputTypeMatcher extends BoundedDiagnosingMatcher<View, EditText> {
     @RemoteMsgField(order = 0)
-    private int inputType;
+    private final int inputType;
 
     @RemoteMsgConstructor
     private WithInputTypeMatcher(int inputType) {
@@ -1691,21 +2110,25 @@ public final class ViewMatchers {
     }
 
     @Override
-    public void describeTo(Description description) {
-      description.appendText("is view input type equal to: ");
-      description.appendText(Integer.toString(inputType));
+    protected void describeMoreTo(Description description) {
+      description.appendText("editText.getInputType() is ").appendValue(inputType);
     }
 
     @Override
-    protected boolean matchesSafely(EditText view) {
+    protected boolean matchesSafely(EditText view, Description mismatchDescription) {
+      mismatchDescription
+          .appendText("editText.getInputType() was ")
+          .appendValue(view.getInputType());
       return view.getInputType() == inputType;
     }
   }
 
   @VisibleForTesting
-  static final class WithParentIndexMatcher extends TypeSafeMatcher<View> {
+  static final class WithParentIndexMatcher extends TypeSafeDiagnosingMatcher<View> {
     @RemoteMsgField(order = 0)
     private final int index;
+
+    private final Matcher<ViewGroup> parentViewGroupMatcher = Matchers.isA(ViewGroup.class);
 
     @RemoteMsgConstructor
     private WithParentIndexMatcher(int index) {
@@ -1714,15 +2137,92 @@ public final class ViewMatchers {
 
     @Override
     public void describeTo(Description description) {
-      description.appendText("with parent index: " + index);
+      description
+          .appendText("(view.getParent() ")
+          .appendDescriptionOf(parentViewGroupMatcher)
+          .appendText(" and is at child index ")
+          .appendValue(index)
+          .appendText(")");
     }
 
     @Override
-    public boolean matchesSafely(View view) {
+    protected boolean matchesSafely(View view, Description mismatchDescription) {
       ViewParent parent = view.getParent();
-      return parent instanceof ViewGroup
-          && ((ViewGroup) parent).getChildCount() > index
-          && ((ViewGroup) parent).getChildAt(index) == view;
+      if (!parentViewGroupMatcher.matches(parent)) {
+        mismatchDescription.appendText("view.getParent() ");
+        parentViewGroupMatcher.describeMismatch(parent, mismatchDescription);
+        return false;
+      }
+      if (((ViewGroup) parent).getChildCount() <= index) {
+        mismatchDescription
+            .appendText("parent only has ")
+            .appendValue(((ViewGroup) parent).getChildCount())
+            .appendText(" children");
+        return false;
+      }
+      final View child = ((ViewGroup) parent).getChildAt(index);
+      if (child != view) {
+        mismatchDescription
+            .appendText("child view at index ")
+            .appendValue(index)
+            .appendText(" was ")
+            .appendValue(child);
+        return false;
+      }
+      return true;
     }
+  }
+
+  /**
+   * Get the resource name given an integer identifier in a safe manner. This means:
+   *
+   * <ul>
+   *   <li>Handling {@link Resources.NotFoundException} if thrown.
+   *   <li>Not querying the resources if the identifier is generated. This would otherwise always
+   *       fail and will log an error. This should be avoided because in some testing frameworks,
+   *       logging an error will make the test fail.
+   * </ul>
+   *
+   * @param res The {@link Resources} to query for the ID.
+   * @param id The ID to query.
+   * @return The resource name or {@code null} if not found.
+   * @see #isViewIdGenerated(int)
+   * @see Resources#getResourceName(int)
+   */
+  private static String safeGetResourceName(Resources res, int id) {
+    try {
+      return isViewIdGenerated(id) ? null : res.getResourceName(id);
+    } catch (Resources.NotFoundException e) {
+      return null;
+    }
+  }
+
+  /**
+   * Get the resource entry name in a safe manner. This is similar to {@link
+   * #safeGetResourceName(Resources, int)}, but makes a call to {@link
+   * Resources#getResourceEntryName(int)} instead.
+   *
+   * @param res The {@link Resources} to query for the ID.
+   * @param id The ID to query.
+   * @return The resource entry name or {@code null} if not found.
+   * @see #safeGetResourceName(Resources, int)
+   * @see Resources#getResourceEntryName(int)
+   */
+  private static String safeGetResourceEntryName(Resources res, int id) {
+    try {
+      return isViewIdGenerated(id) ? null : res.getResourceEntryName(id);
+    } catch (Resources.NotFoundException e) {
+      return null;
+    }
+  }
+
+  /**
+   * IDs generated by {@link View#generateViewId} will fail if used as a resource ID in attempted
+   * resources lookups. This now logs an error in API 28, causing test failures. This method is
+   * taken from {@link View#isViewIdGenerated} to prevent resource lookup to check if a view id was
+   * generated.
+   */
+  private static boolean isViewIdGenerated(int id) {
+    return (id & 0xFF000000) == 0 && (id & 0x00FFFFFF) != 0;
   }
 }

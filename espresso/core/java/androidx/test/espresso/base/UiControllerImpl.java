@@ -45,6 +45,7 @@ import java.util.BitSet;
 import java.util.EnumSet;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Locale;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
@@ -331,20 +332,23 @@ final class UiControllerImpl
     if (events == null) {
       throw new RuntimeException(
           String.format(
+              Locale.ROOT,
               "Failed to get key events for string %s (i.e. current IME does not understand how to"
                   + " translate the string into key events). As a workaround, you can use"
                   + " replaceText action to set the text directly in the EditText field.",
               str));
     }
 
-    Log.d(TAG, String.format("Injecting string: \"%s\"", str));
+    Log.d(TAG, String.format(Locale.ROOT, "Injecting string: \"%s\"", str));
 
     for (KeyEvent event : events) {
       checkNotNull(
           event,
           String.format(
+              Locale.ROOT,
               "Failed to get event for character (%c) with key code (%s)",
-              event.getKeyCode(), event.getUnicodeChar()));
+              event.getKeyCode(),
+              event.getUnicodeChar()));
 
       eventInjected = false;
       for (int attempts = 0; !eventInjected && attempts < 4; attempts++) {
@@ -361,8 +365,10 @@ final class UiControllerImpl
         Log.e(
             TAG,
             String.format(
+                Locale.ROOT,
                 "Failed to inject event for character (%c) with key code (%s)",
-                event.getUnicodeChar(), event.getKeyCode()));
+                event.getUnicodeChar(),
+                event.getKeyCode()));
         break;
       }
     }
@@ -510,6 +516,7 @@ final class UiControllerImpl
   private IdleNotifier<IdleNotificationCallback> loopUntil(
       EnumSet<IdleCondition> conditions, IdleNotifier<IdleNotificationCallback> dynamicIdle) {
     IdlingPolicy masterIdlePolicy = IdlingPolicies.getMasterIdlingPolicy();
+    IdlingPolicy dynamicIdlePolicy = IdlingPolicies.getDynamicIdlingResourceErrorPolicy();
     try {
       long start = SystemClock.uptimeMillis();
       long end =
@@ -530,11 +537,46 @@ final class UiControllerImpl
       for (IdleCondition condition : conditions) {
         if (!condition.isSignaled(conditionSet)) {
           idleConditions.add(condition.name());
+          switch (condition) {
+            case ASYNC_TASKS_HAVE_IDLED:
+              if (masterIdlePolicy.getDisableOnTimeout()
+                  || (!masterIdlePolicy.getTimeoutIfDebuggerAttached()
+                      && Debug.isDebuggerConnected())) {
+                asyncIdle.cancelCallback();
+                asyncIdle = new NoopRunnableIdleNotifier();
+              }
+              break;
+            case COMPAT_TASKS_HAVE_IDLED:
+              if (masterIdlePolicy.getDisableOnTimeout()
+                  || (!masterIdlePolicy.getTimeoutIfDebuggerAttached()
+                      && Debug.isDebuggerConnected())) {
+                compatIdle.cancelCallback();
+                compatIdle = new NoopRunnableIdleNotifier();
+              }
+              break;
+            case DYNAMIC_TASKS_HAVE_IDLED:
+              if (dynamicIdlePolicy.getDisableOnTimeout()
+                  || (!masterIdlePolicy.getTimeoutIfDebuggerAttached()
+                      && Debug.isDebuggerConnected())) {
+                dynamicIdle.cancelCallback();
+                dynamicIdleProvider = new NoopIdleNotificationCallbackIdleNotifierProvider();
+                dynamicIdle = dynamicIdleProvider.get();
+              }
+              break;
+            default:
+              break;
+          }
         }
+      }
+      if (idleConditions.isEmpty()) {
+        // Formatted to look consistent with other idling conditions.
+        idleConditions.add(
+            "MAIN_LOOPER_HAS_IDLED(last message: " + interrogation.getMessage() + ")");
       }
       masterIdlePolicy.handleTimeout(
           idleConditions,
           String.format(
+              Locale.ROOT,
               "Looped for %s iterations over %s %s.",
               interrogation.execCount,
               masterIdlePolicy.getIdleTimeout(),
@@ -569,6 +611,7 @@ final class UiControllerImpl
     private final EnumSet<IdleCondition> conditions;
     private final BitSet conditionSet;
     private final long giveUpAtMs;
+    private String lastMessage;
 
     private InterrogationStatus status = InterrogationStatus.COMPLETED;
     private int execCount = 0;
@@ -578,6 +621,22 @@ final class UiControllerImpl
       this.conditions = conditions;
       this.conditionSet = conditionSet;
       this.giveUpAtMs = giveUpAtMs;
+    }
+
+    @Override
+    public void setMessage(Message m) {
+      try {
+        lastMessage = m.toString();
+      } catch (NullPointerException npe) {
+        // toString can fail with an NPE on getClass()
+        // This field is just for diagnosing Espresso test failures; suppress the error.
+        lastMessage = "NPE calling message toString(): " + npe;
+      }
+    }
+
+    @Override
+    public String getMessage() {
+      return lastMessage;
     }
 
     @Override

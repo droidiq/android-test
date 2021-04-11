@@ -28,8 +28,8 @@ import com.google.android.apps.common.testing.accessibility.framework.integratio
 
 /**
  * A class to enable automated accessibility checks in Espresso tests. These checks will run as a
- * global {@code ViewAssertion}, and cover a variety of accessibility issues (see {@link
- * com.google.android.apps.common.testing.accessibility.framework.AccessibilityCheckPreset#LATEST}
+ * global {@code ViewAssertion}, and cover a variety of accessibility issues (see <a
+ * href="https://github.com/google/Accessibility-Test-Framework-for-Android/blob/master/src/main/java/com/google/android/apps/common/testing/accessibility/framework/AccessibilityCheckPreset.java">AccessibilityCheckPreset#LATEST</a>
  * to see which checks are run).
  */
 public final class AccessibilityChecks {
@@ -82,11 +82,25 @@ public final class AccessibilityChecks {
    */
   public static AccessibilityValidator enable() {
     if (checksEnabled) {
-      throw new IllegalStateException("Accessibility checks already enabled!");
+      Log.w(TAG, "Accessibility checks already enabled.");
+    } else {
+      checksEnabled = true;
+      ViewActions.addGlobalAssertion("Accessibility Checks", ACCESSIBILITY_CHECK_ASSERTION);
     }
-    checksEnabled = true;
-    ViewActions.addGlobalAssertion("Accessibility Checks", ACCESSIBILITY_CHECK_ASSERTION);
     return CHECK_EXECUTOR;
+  }
+
+  /**
+   * Disables accessibility checking as a global ViewAssertion in {@link ViewActions}.
+   *
+   * @throws IllegalStateException if accessibility checking in not enabled.
+   */
+  public static void disable() {
+    if (!checksEnabled) {
+      throw new IllegalStateException("Accessibility checks not enabled!");
+    }
+    checksEnabled = false;
+    ViewActions.removeGlobalAssertion(ACCESSIBILITY_CHECK_ASSERTION);
   }
 
   /**

@@ -15,10 +15,10 @@ android_library(
     manifest = "AndroidManifest.xml",
     visibility = ["//visibility:public"],
     deps = [
-        "//:com_android_support_support_annotations",
+        "//:androidx_annotation",
         "//core",
-        "@guava//jar",
-        "@truth//jar",
+        "@maven//:com_google_guava_guava",
+        "@maven//:com_google_truth_truth",
     ],
 )
 
@@ -38,17 +38,8 @@ android_library(
 # a java_library target libtruth_release_no_deps
 axt_release_lib(
     name = "truth_release",
-    overlapping_jars = [
-        "//runner/monitor/java/androidx/test:monitor_release_no_deps.jar",
-        "//core/java/androidx/test/core:core_release_no_deps.jar",
-    ],
-    remove_specs = [
-        "androidx.test.core.R.*",
-        "androidx.test.ext.truth.R.*",
-        "android.support.*",
-        "android.arch.*",
-        "difflib.*",
-    ],
+    keep_spec = "androidx/test/ext/truth",
+    remove_spec = "androidx/test/ext/truth/R[$$\.]",
     deps = [
         ":truth_release_lib",
     ],

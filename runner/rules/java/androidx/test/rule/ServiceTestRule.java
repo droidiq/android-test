@@ -21,12 +21,12 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.ServiceConnection;
 import android.os.IBinder;
-import android.support.annotation.NonNull;
-import android.support.annotation.VisibleForTesting;
+import androidx.annotation.NonNull;
+import androidx.annotation.VisibleForTesting;
 import android.util.Log;
-import androidx.test.InstrumentationRegistry;
 import androidx.test.annotation.Beta;
 import androidx.test.internal.util.Checks;
+import androidx.test.platform.app.InstrumentationRegistry;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
@@ -39,7 +39,7 @@ import org.junit.runners.model.Statement;
  * after the duration of your test. It also guarantees that the service is successfully connected
  * when starting (or binding to) a service. The service can be started (or bound) using one of the
  * helper methods. It will automatically be stopped (or unbound) after the test completes and any
- * methods annotated with <a href="http://junit.source.net/javadoc/org/junit/After.html"><code>
+ * methods annotated with <a href="http://junit.sourceforge.net/javadoc/org/junit/After.html"><code>
  * After</code></a> are finished.
  *
  * <p>Note: This rule doesn't support {@link android.app.IntentService} because it's automatically
@@ -79,18 +79,23 @@ public class ServiceTestRule implements TestRule {
   private static final String TAG = "ServiceTestRule";
   private static final long DEFAULT_TIMEOUT = 5L; // seconds
 
-  private IBinder mBinder;
-  private Intent mServiceIntent;
-  private ServiceConnection mServiceConn;
-  private long mTimeout;
-  private TimeUnit mTimeUnit;
+  private IBinder binder;
+  private Intent serviceIntent;
+  private ServiceConnection serviceConn;
+  private final long timeout;
+  private final TimeUnit timeUnit;
 
-  boolean mServiceStarted = false;
-  boolean mServiceBound = false;
+  boolean serviceStarted = false;
+  boolean serviceBound = false;
 
   /** Creates a {@link ServiceTestRule} with a default timeout of 5 seconds */
   public ServiceTestRule() {
     this(DEFAULT_TIMEOUT, TimeUnit.SECONDS);
+  }
+
+  protected ServiceTestRule(long timeout, TimeUnit timeUnit) {
+    this.timeout = timeout;
+    this.timeUnit = timeUnit;
   }
 
   /**
@@ -102,11 +107,6 @@ public class ServiceTestRule implements TestRule {
    */
   public static ServiceTestRule withTimeout(long timeout, TimeUnit timeUnit) {
     return new ServiceTestRule(timeout, timeUnit);
-  }
-
-  private ServiceTestRule(long timeout, TimeUnit timeUnit) {
-    mTimeout = timeout;
-    mTimeUnit = timeUnit;
   }
 
   /**
@@ -128,12 +128,12 @@ public class ServiceTestRule implements TestRule {
    * @throws TimeoutException if timed out waiting for a successful connection with the service.
    */
   public void startService(@NonNull Intent intent) throws TimeoutException {
-    mServiceIntent = Checks.checkNotNull(intent, "intent can't be null");
-    InstrumentationRegistry.getTargetContext().startService(mServiceIntent);
-    mServiceStarted = true;
+    serviceIntent = Checks.checkNotNull(intent, "intent can't be null");
+    InstrumentationRegistry.getInstrumentation().getTargetContext().startService(serviceIntent);
+    serviceStarted = true;
 
     // bind to the started service to guarantee its started and connected before test execution
-    mServiceBound = bindServiceAndWait(mServiceIntent, null, Context.BIND_AUTO_CREATE);
+    serviceBound = bindServiceAndWait(serviceIntent, null, Context.BIND_AUTO_CREATE);
   }
 
   /**
@@ -145,9 +145,9 @@ public class ServiceTestRule implements TestRule {
    */
   public IBinder bindService(@NonNull Intent intent) throws TimeoutException {
     // no extras are expected by unbind
-    mServiceIntent = Checks.checkNotNull(intent, "intent can't be null").cloneFilter();
-    mServiceBound = bindServiceAndWait(intent, null, Context.BIND_AUTO_CREATE);
-    return mBinder;
+    serviceIntent = Checks.checkNotNull(intent, "intent can't be null").cloneFilter();
+    serviceBound = bindServiceAndWait(intent, null, Context.BIND_AUTO_CREATE);
+    return binder;
   }
 
   /**
@@ -182,11 +182,11 @@ public class ServiceTestRule implements TestRule {
       @NonNull Intent intent, @NonNull ServiceConnection connection, int flags)
       throws TimeoutException {
     // no extras are expected by unbind
-    mServiceIntent = Checks.checkNotNull(intent, "intent can't be null").cloneFilter();
+    serviceIntent = Checks.checkNotNull(intent, "intent can't be null").cloneFilter();
     ServiceConnection c = Checks.checkNotNull(connection, "connection can't be null");
-    mServiceBound = bindServiceAndWait(mServiceIntent, c, flags);
+    serviceBound = bindServiceAndWait(serviceIntent, c, flags);
 
-    return mBinder;
+    return binder;
   }
 
   @VisibleForTesting
@@ -196,12 +196,14 @@ public class ServiceTestRule implements TestRule {
     ProxyServiceConnection serviceConn = new ProxyServiceConnection(conn);
 
     boolean isBound =
-        InstrumentationRegistry.getTargetContext().bindService(intent, serviceConn, flags);
+        InstrumentationRegistry.getInstrumentation()
+            .getTargetContext()
+            .bindService(intent, serviceConn, flags);
 
     if (isBound) {
       // block until service connection is established
-      waitOnLatch(serviceConn.mConnectedLatch, "connected");
-      mServiceConn = serviceConn;
+      waitOnLatch(serviceConn.connectedLatch, "connected");
+      this.serviceConn = serviceConn;
     } else {
       Log.e(TAG, "Failed to bind to service! Is your service declared in the manifest?");
     }
@@ -216,10 +218,10 @@ public class ServiceTestRule implements TestRule {
    * your service will automatically be stopped and unbound at the end of each test method.
    */
   public void unbindService() {
-    if (mServiceBound) {
-      InstrumentationRegistry.getTargetContext().unbindService(mServiceConn);
-      mBinder = null;
-      mServiceBound = false;
+    if (serviceBound) {
+      InstrumentationRegistry.getInstrumentation().getTargetContext().unbindService(serviceConn);
+      binder = null;
+      serviceBound = false;
     }
   }
 
@@ -229,32 +231,32 @@ public class ServiceTestRule implements TestRule {
    * caller.
    */
   class ProxyServiceConnection implements ServiceConnection {
-    private ServiceConnection mCallerConnection;
-    public CountDownLatch mConnectedLatch = new CountDownLatch(1);
+    private ServiceConnection callerConnection;
+    public CountDownLatch connectedLatch = new CountDownLatch(1);
 
     private ProxyServiceConnection(ServiceConnection connection) {
-      mCallerConnection = connection;
+      callerConnection = connection;
     }
 
     @Override
     public void onServiceConnected(ComponentName name, IBinder service) {
       // store the service binder to return to the caller
-      mBinder = service;
-      if (mCallerConnection != null) {
+      binder = service;
+      if (callerConnection != null) {
         // pass through everything to the callers ServiceConnection
-        mCallerConnection.onServiceConnected(name, service);
+        callerConnection.onServiceConnected(name, service);
       }
-      mConnectedLatch.countDown();
+      connectedLatch.countDown();
     }
 
     @Override
     public void onServiceDisconnected(ComponentName name) {
       // The process hosting the service has crashed or been killed.
       Log.e(TAG, "Connection to the Service has been lost!");
-      mBinder = null;
-      if (mCallerConnection != null) {
+      binder = null;
+      if (callerConnection != null) {
         // pass through everything to the callers ServiceConnection
-        mCallerConnection.onServiceDisconnected(name);
+        callerConnection.onServiceDisconnected(name);
       }
     }
   }
@@ -262,12 +264,12 @@ public class ServiceTestRule implements TestRule {
   /** Helper method to block on a given latch for the duration of the set timeout */
   private void waitOnLatch(CountDownLatch latch, String actionName) throws TimeoutException {
     try {
-      if (!latch.await(mTimeout, mTimeUnit)) {
+      if (!latch.await(timeout, timeUnit)) {
         throw new TimeoutException(
             "Waited for "
-                + mTimeout
+                + timeout
                 + " "
-                + mTimeUnit.name()
+                + timeUnit.name()
                 + ","
                 + " but service was never "
                 + actionName);
@@ -285,9 +287,9 @@ public class ServiceTestRule implements TestRule {
    */
   @VisibleForTesting
   void shutdownService() throws TimeoutException {
-    if (mServiceStarted) {
-      InstrumentationRegistry.getTargetContext().stopService(mServiceIntent);
-      mServiceStarted = false;
+    if (serviceStarted) {
+      InstrumentationRegistry.getInstrumentation().getTargetContext().stopService(serviceIntent);
+      serviceStarted = false;
     }
     unbindService();
   }
@@ -295,7 +297,7 @@ public class ServiceTestRule implements TestRule {
   /**
    * Override this method to do your own service specific initialization before starting or binding
    * to the service. The method is called before each test method is executed including any method
-   * annotated with <a href="http://junit.source.net/javadoc/org/junit/Before.html"><code>
+   * annotated with <a href="http://junit.sourceforge.net/javadoc/org/junit/Before.html"><code>
    * Before</code></a>. Do not start or bind to a service from here!
    */
   protected void beforeService() {
@@ -305,7 +307,7 @@ public class ServiceTestRule implements TestRule {
   /**
    * Override this method to do your own service specific clean up after the service is shutdown.
    * The method is called after each test method is executed including any method annotated with <a
-   * href="http://junit.source.net/javadoc/org/junit/After.html"><code>After</code></a> and
+   * href="http://junit.sourceforge.net/javadoc/org/junit/After.html"><code>After</code></a> and
    * after necessary calls to stop (or unbind) the service under test were called.
    */
   protected void afterService() {
@@ -322,17 +324,17 @@ public class ServiceTestRule implements TestRule {
    * the test.
    */
   private class ServiceStatement extends Statement {
-    private final Statement mBase;
+    private final Statement base;
 
     public ServiceStatement(Statement base) {
-      mBase = base;
+      this.base = base;
     }
 
     @Override
     public void evaluate() throws Throwable {
       try {
         beforeService();
-        mBase.evaluate();
+        base.evaluate();
       } finally {
         shutdownService();
         afterService();

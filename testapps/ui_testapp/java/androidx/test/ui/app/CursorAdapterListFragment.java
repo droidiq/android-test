@@ -19,13 +19,13 @@ package androidx.test.ui.app;
 import android.database.MatrixCursor;
 import android.database.MergeCursor;
 import android.os.Bundle;
-import android.support.v4.app.ListFragment;
-import android.support.v4.widget.CursorAdapter;
-import android.support.v4.widget.SimpleCursorAdapter;
+import androidx.fragment.app.ListFragment;
 import android.view.View;
 import android.widget.ListAdapter;
 import android.widget.ListView;
 import android.widget.TextView;
+import androidx.cursoradapter.widget.CursorAdapter;
+import androidx.cursoradapter.widget.SimpleCursorAdapter;
 import com.google.common.annotations.VisibleForTesting;
 
 /**

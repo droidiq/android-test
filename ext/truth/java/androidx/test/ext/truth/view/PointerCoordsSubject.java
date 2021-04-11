@@ -15,7 +15,7 @@
  */
 package androidx.test.ext.truth.view;
 
-import android.support.annotation.Nullable;
+import androidx.annotation.Nullable;
 import android.view.MotionEvent.PointerCoords;
 import android.view.MotionEvent.PointerProperties;
 import com.google.common.truth.FailureMetadata;
@@ -24,7 +24,7 @@ import com.google.common.truth.Subject;
 import com.google.common.truth.Truth;
 
 /** {@link Subject} for {@link PointerProperties} */
-public final class PointerCoordsSubject extends Subject<PointerCoordsSubject, PointerCoords> {
+public final class PointerCoordsSubject extends Subject {
 
   public static PointerCoordsSubject assertThat(PointerCoords other) {
     return Truth.assertAbout(pointerCoords()).that(other);
@@ -34,48 +34,51 @@ public final class PointerCoordsSubject extends Subject<PointerCoordsSubject, Po
     return PointerCoordsSubject::new;
   }
 
+  private final PointerCoords actual;
+
   private PointerCoordsSubject(
       FailureMetadata failureMetadata, @Nullable PointerCoords pointerProperties) {
     super(failureMetadata, pointerProperties);
+    this.actual = pointerProperties;
   }
 
   public FloatSubject x() {
-    return check("x").that(actual().x);
+    return check("x").that(actual.x);
   }
 
   public FloatSubject y() {
-    return check("y").that(actual().y);
+    return check("y").that(actual.y);
   }
 
   public FloatSubject orientation() {
-    return check("orientation").that(actual().orientation);
+    return check("orientation").that(actual.orientation);
   }
 
   public FloatSubject pressure() {
-    return check("pressure").that(actual().pressure);
+    return check("pressure").that(actual.pressure);
   }
 
   public FloatSubject size() {
-    return check("size").that(actual().size);
+    return check("size").that(actual.size);
   }
 
   public FloatSubject toolMajor() {
-    return check("toolMajor").that(actual().toolMajor);
+    return check("toolMajor").that(actual.toolMajor);
   }
 
   public FloatSubject toolMinor() {
-    return check("toolMinor").that(actual().toolMinor);
+    return check("toolMinor").that(actual.toolMinor);
   }
 
   public FloatSubject touchMinor() {
-    return check("touchMinor").that(actual().touchMinor);
+    return check("touchMinor").that(actual.touchMinor);
   }
 
   public FloatSubject touchMajor() {
-    return check("touchMajor").that(actual().touchMajor);
+    return check("touchMajor").that(actual.touchMajor);
   }
 
   public FloatSubject axisValue(int axis) {
-    return check("getAxisValue(%s)", axis).that(actual().getAxisValue(axis));
+    return check("getAxisValue(%s)", axis).that(actual.getAxisValue(axis));
   }
 }

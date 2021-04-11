@@ -23,10 +23,12 @@ import android.app.Activity;
 import android.os.Looper;
 import android.util.Log;
 import android.view.View;
+import androidx.test.espresso.EspressoException;
 import androidx.test.espresso.NoActivityResumedException;
 import androidx.test.espresso.NoMatchingRootException;
 import androidx.test.espresso.Root;
 import androidx.test.espresso.UiController;
+import androidx.test.internal.platform.os.ControlledLooper;
 import androidx.test.internal.util.LogUtil;
 import androidx.test.runner.lifecycle.ActivityLifecycleMonitor;
 import androidx.test.runner.lifecycle.Stage;
@@ -35,6 +37,7 @@ import com.google.common.collect.Lists;
 import java.util.Collection;
 import java.util.EnumSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import javax.inject.Inject;
@@ -60,17 +63,20 @@ public final class RootViewPicker implements Provider<View> {
   private final ActivityLifecycleMonitor activityLifecycleMonitor;
   private final AtomicReference<Boolean> needsActivity;
   private final RootResultFetcher rootResultFetcher;
+  private final ControlledLooper controlledLooper;
 
   @Inject
   RootViewPicker(
       UiController uiController,
       RootResultFetcher rootResultFetcher,
       ActivityLifecycleMonitor activityLifecycleMonitor,
-      AtomicReference<Boolean> needsActivity) {
+      AtomicReference<Boolean> needsActivity,
+      ControlledLooper controlledLooper) {
     this.uiController = uiController;
     this.rootResultFetcher = rootResultFetcher;
     this.activityLifecycleMonitor = activityLifecycleMonitor;
     this.needsActivity = needsActivity;
+    this.controlledLooper = controlledLooper;
   }
 
   @Override
@@ -97,12 +103,14 @@ public final class RootViewPicker implements Provider<View> {
       if (pickedRoot.isReady()) {
         return pickedRoot;
       } else {
+        controlledLooper.simulateWindowFocus(pickedRoot.getDecorView());
         uiController.loopMainThreadForAtLeast(rootReadyBackoff.getNextBackoffInMillis());
       }
     }
 
-    throw new RuntimeException(
+    throw new RootViewWithoutFocusException(
         String.format(
+            Locale.ROOT,
             "Waited for the root of the view hierarchy to have "
                 + "window focus and not request layout for 10 seconds. If you specified a non "
                 + "default root matcher, it may be picking a root that never takes focus. "
@@ -150,24 +158,23 @@ public final class RootViewPicker implements Provider<View> {
       resumedActivities = activityLifecycleMonitor.getActivitiesInStage(Stage.RESUMED);
     }
     if (resumedActivities.isEmpty()) {
-      List<Activity> activities = Lists.newArrayList();
-      for (long waitTime : CREATED_WAIT_TIMES) {
-        // wait for Activities to be scheduled by the platform before assuming there are none
-        // and failing the test.
-        for (Stage s : EnumSet.range(Stage.PRE_ON_CREATE, Stage.RESTARTED)) {
-          activities.addAll(activityLifecycleMonitor.getActivitiesInStage(s));
-        }
-        if (!activities.isEmpty()) {
-          // found at least one activity in the pipeline
-          break;
-        }
-        Log.w(TAG, "No activities found - waiting: " + waitTime + "ms for one to appear.");
-        uiController.loopMainThreadForAtLeast(waitTime);
-      }
-
+      List<Activity> activities = getAllActiveActivities();
       if (activities.isEmpty()) {
-        throw new RuntimeException(
-            "No activities found. Did you t to launch the activity "
+        for (long waitTime : CREATED_WAIT_TIMES) {
+          // wait for Activities to be scheduled by the platform before assuming there are none
+          // and failing the test.
+          Log.w(TAG, "No activities found - waiting: " + waitTime + "ms for one to appear.");
+          uiController.loopMainThreadForAtLeast(waitTime);
+          activities = getAllActiveActivities();
+          if (!activities.isEmpty()) {
+            // found at least one activity in the pipeline
+            break;
+          }
+        }
+      }
+      if (activities.isEmpty()) {
+        throw new NoActivityResumedException(
+            "No activities found. Did you forget to launch the activity "
                 + "by calling getActivity() or startActivitySync or similar?");
       }
       // well at least there are some activities in the pipeline - lets see if they resume.
@@ -182,9 +189,18 @@ public final class RootViewPicker implements Provider<View> {
         }
       }
       throw new NoActivityResumedException(
-          "No activities in stage RESUMED. Did you t to "
+          "No activities in stage RESUMED. Did you forget to "
               + "launch the activity. (test.getActivity() or similar)?");
     }
+  }
+
+  /** Returns the list of all non-destroyed activities. */
+  private List<Activity> getAllActiveActivities() {
+    List<Activity> activities = Lists.newArrayList();
+    for (Stage s : EnumSet.range(Stage.PRE_ON_CREATE, Stage.RESTARTED)) {
+      activities.addAll(activityLifecycleMonitor.getActivitiesInStage(s));
+    }
+    return activities;
   }
 
   private static class RootResults {
@@ -339,7 +355,10 @@ public final class RootViewPicker implements Provider<View> {
       long waitTime = getBackoffForAttempt();
       Log.d(
           TAG,
-          String.format("No matching root available - waiting: %sms for one to appear.", waitTime));
+          String.format(
+              Locale.ROOT,
+              "No matching root available - waiting: %sms for one to appear.",
+              waitTime));
       return waitTime;
     }
   }
@@ -355,8 +374,19 @@ public final class RootViewPicker implements Provider<View> {
     @Override
     public long getNextBackoffInMillis() {
       long waitTime = getBackoffForAttempt();
-      Log.d(TAG, String.format("Root not ready - waiting: %sms for one to appear.", waitTime));
+      Log.d(
+          TAG,
+          String.format(
+              Locale.ROOT, "Root not ready - waiting: %sms for one to appear.", waitTime));
       return waitTime;
+    }
+  }
+
+  private static final class RootViewWithoutFocusException extends RuntimeException
+      implements EspressoException {
+
+    private RootViewWithoutFocusException(String message) {
+      super(message);
     }
   }
 }

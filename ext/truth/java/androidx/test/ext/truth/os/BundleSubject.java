@@ -19,14 +19,17 @@ import static com.google.common.truth.Fact.simpleFact;
 
 import android.os.Bundle;
 import android.os.Parcelable;
+import com.google.common.truth.BooleanSubject;
 import com.google.common.truth.FailureMetadata;
 import com.google.common.truth.IntegerSubject;
+import com.google.common.truth.IterableSubject;
+import com.google.common.truth.LongSubject;
 import com.google.common.truth.StringSubject;
 import com.google.common.truth.Subject;
 import com.google.common.truth.Truth;
 
 /** Subject for making assertions about {@link Bundle}s. */
-public final class BundleSubject extends Subject<BundleSubject, Bundle> {
+public final class BundleSubject extends Subject {
 
   public static BundleSubject assertThat(Bundle bundle) {
     return Truth.assertAbout(bundles()).that(bundle);
@@ -36,43 +39,72 @@ public final class BundleSubject extends Subject<BundleSubject, Bundle> {
     return BundleSubject::new;
   }
 
+  private final Bundle actual;
+
   BundleSubject(FailureMetadata failureMetadata, Bundle subject) {
     super(failureMetadata, subject);
+    this.actual = subject;
   }
 
   public void hasSize(int size) {
-    check("size()").that(actual().size()).isEqualTo(size);
+    check("size()").that(actual.size()).isEqualTo(size);
   }
 
   public void isEmpty() {
-    if (!actual().isEmpty()) {
+    if (!actual.isEmpty()) {
       failWithActual(simpleFact("expected to be empty"));
     }
   }
 
   public void isNotEmpty() {
-    if (actual().isEmpty()) {
+    if (actual.isEmpty()) {
       failWithActual(simpleFact("expected to be non-empty"));
     }
   }
 
   public StringSubject string(String key) {
-    return check("getString(%s)", key).that(actual().getString(key));
+    return check("getString(%s)", key).that(actual.getString(key));
   }
 
   public IntegerSubject integer(String key) {
-    return check("getInt(%s)", key).that(actual().getInt(key));
+    return check("getInt(%s)", key).that(actual.getInt(key));
   }
 
+  public LongSubject longInt(String key) {
+    return check("getLong(%s)", key).that(actual.getLong(key));
+  }
+
+  public BooleanSubject bool(String key) {
+    return check("getBoolean(%s)", key).that(actual.getBoolean(key));
+  }
+
+  public <T extends Parcelable> ParcelableSubject<T> parcelable(String key) {
+    return check("getParcelable(%s)", key)
+        .about(ParcelableSubject.<T>parcelables())
+        .that(actual.<T>getParcelable(key));
+  }
+
+  public <T extends Parcelable, SubjectT extends Subject> SubjectT parcelableAsType(
+      String key, Subject.Factory<SubjectT, T> subjectFactory) {
+    return check("getParcelable(%s)", key).about(subjectFactory).that(actual.<T>getParcelable(key));
+  }
+
+  public IterableSubject stringArrayList(String key) {
+    return check("getStringArrayList(%s)", key).that(actual.getStringArrayList(key));
+  }
+
+  public IterableSubject parcelableArrayList(String key) {
+    return check("getParcelableArrayList(%s)", key).that(actual.getParcelableArrayList(key));
+  }
 
   public void containsKey(String key) {
-    if (!actual().containsKey(key)) {
+    if (!actual.containsKey(key)) {
       failWithActual(simpleFact("expected to contain key " + key));
     }
   }
 
   public void doesNotContainKey(String key) {
-    if (actual().containsKey(key)) {
+    if (actual.containsKey(key)) {
       failWithActual(simpleFact("expected to not contain key " + key));
     }
   }

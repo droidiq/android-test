@@ -9,14 +9,13 @@ android_binary(
     name = "stubapp",
     srcs = ["src/androidx/test/orchestrator/Orchestrator.java"],
     custom_package = "androidx.test.orchestrator.stubapp",
-    licenses = (["notice"]),
     manifest = "src/AndroidManifest.xml",
     visibility = ["//visibility:public"],
     deps = [
         "//runner/android_junit_runner",
         "//runner/android_test_orchestrator",
-        "@guava//jar",
-        "@junit//jar",
+        "@maven//:com_google_guava_guava",
+        "@maven//:junit_junit",
     ],
 )
 

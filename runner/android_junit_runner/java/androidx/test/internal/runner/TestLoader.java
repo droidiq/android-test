@@ -16,7 +16,7 @@
 
 package androidx.test.internal.runner;
 
-import android.support.annotation.VisibleForTesting;
+import androidx.annotation.VisibleForTesting;
 import android.util.Log;
 import androidx.test.internal.runner.junit3.AndroidJUnit3Builder;
 import java.lang.reflect.Modifier;
@@ -36,10 +36,10 @@ class TestLoader {
 
   private static final String LOG_TAG = "TestLoader";
 
-  private final ClassLoader mClassLoader;
-  private final RunnerBuilder mRunnerBuilder;
+  private final ClassLoader classLoader;
+  private final RunnerBuilder runnerBuilder;
 
-  private final Map<String, Runner> mRunnersMap = new LinkedHashMap<>();
+  private final Map<String, Runner> runnersMap = new LinkedHashMap<>();
 
   static TestLoader testLoader(
       ClassLoader classLoader, RunnerBuilder runnerBuilder, boolean scanningPath) {
@@ -57,27 +57,28 @@ class TestLoader {
   }
 
   private TestLoader(ClassLoader classLoader, RunnerBuilder runnerBuilder) {
-    this.mClassLoader = classLoader;
-    this.mRunnerBuilder = runnerBuilder;
+    this.classLoader = classLoader;
+    this.runnerBuilder = runnerBuilder;
   }
 
   private void doCreateRunner(String className, boolean isScanningPath) {
-    if (mRunnersMap.containsKey(className)) {
+    if (runnersMap.containsKey(className)) {
       // Class with the same name was already loaded, return
       return;
     }
 
     Runner runner;
     try {
-      Class<?> loadedClass = Class.forName(className, false, mClassLoader);
-      runner = mRunnerBuilder.safeRunnerForClass(loadedClass);
+      Class<?> loadedClass = Class.forName(className, false, classLoader);
+      runner = runnerBuilder.safeRunnerForClass(loadedClass);
       if (null == runner) {
         logDebug(String.format("Skipping class %s: not a test", loadedClass.getName()));
       } else if (runner == AndroidJUnit3Builder.NOT_A_VALID_TEST) {
         logDebug(String.format("Skipping class %s: not a valid test", loadedClass.getName()));
         runner = null;
       }
-    } catch (ClassNotFoundException e) {
+      // Can get NoClassDefFoundError on Android L when a class extends a non-existent class.
+    } catch (ClassNotFoundException | LinkageError e) {
       String errMsg = String.format("Could not find class: %s", className);
       Log.e(LOG_TAG, errMsg);
       Description description = Description.createSuiteDescription(className);
@@ -92,7 +93,7 @@ class TestLoader {
     }
 
     if (runner != null) {
-      mRunnersMap.put(className, runner);
+      runnersMap.put(className, runner);
     }
   }
 
@@ -103,7 +104,7 @@ class TestLoader {
     for (String className : classNames) {
       doCreateRunner(className, isScanningPath);
     }
-    return new ArrayList<>(mRunnersMap.values());
+    return new ArrayList<>(runnersMap.values());
   }
 
   /**

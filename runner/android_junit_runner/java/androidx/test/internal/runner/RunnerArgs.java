@@ -23,7 +23,7 @@ import android.content.pm.PackageManager;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.ParcelFileDescriptor.AutoCloseInputStream;
-import android.support.annotation.VisibleForTesting;
+import androidx.annotation.VisibleForTesting;
 import android.text.TextUtils;
 import android.util.Log;
 import androidx.test.runner.lifecycle.ApplicationLifecycleCallback;
@@ -81,8 +81,14 @@ public class RunnerArgs {
   static final String ARGUMENT_SCREENSHOT_PROCESSORS = "screenCaptureProcessors";
   static final String ARGUMENT_ORCHESTRATOR_SERVICE = "orchestratorService";
   static final String ARGUMENT_LIST_TESTS_FOR_ORCHESTRATOR = "listTestsForOrchestrator";
+  static final String ARGUMENT_ORCHESTRATOR_DISCOVERY_SERVICE = "testDiscoveryService";
+  static final String ARGUMENT_ORCHESTRATOR_RUN_EVENTS_SERVICE = "testRunEventsService";
+  // Specifies whether the `androidx.test.services` service is installed on the device.
+  // Supposed to be used by the test infrastructure only.
+  static final String ARGUMENT_USE_TEST_STORAGE_SERVICE = "useTestStorageService";
   static final String ARGUMENT_SHELL_EXEC_BINDER_KEY = "shellExecBinderKey";
   static final String ARGUMENT_RUN_LISTENER_NEW_ORDER = "newRunListenerMode";
+  static final String ARGUMENT_TESTS_REGEX = "tests_regex";
 
   // used to separate multiple fully-qualified test case class names
   private static final String CLASS_SEPARATOR = ",";
@@ -90,12 +96,6 @@ public class RunnerArgs {
   private static final String CLASSPATH_SEPARATOR = ":";
   // used to separate fully-qualified test case class name, and one of its methods
   private static final char METHOD_SEPARATOR = '#';
-  // pattern used to identify java class names conforming to java naming conventions
-  private static final String CLASS_OR_METHOD_REGEX =
-      "^([\\p{L}_$][\\p{L}\\p{N}_$]*\\.)*[\\p{Lu}_$][\\p{L}\\p{N}_$]*(#[\\p{L}_$][\\p{L}\\p{N}_$]*)?$";
-  // pattern used to match valid java package names
-  private static final String VALID_PACKAGE_REGEX =
-      "^([\\p{L}_$][\\p{L}\\p{N}_$]*\\.)*[\\p{L}_$][\\p{L}\\p{N}_$]*$";
 
   public final boolean debug;
   public final boolean suiteAssignment;
@@ -106,7 +106,7 @@ public class RunnerArgs {
   public final List<String> testPackages;
   public final List<String> notTestPackages;
   public final String testSize;
-  public final String annotation;
+  public final List<String> annotations;
   public final List<String> notAnnotations;
   public final long testTimeout;
   public final List<RunListener> listeners;
@@ -125,8 +125,12 @@ public class RunnerArgs {
   public final List<ScreenCaptureProcessor> screenCaptureProcessors;
   public final String orchestratorService;
   public final boolean listTestsForOrchestrator;
+  public final String testDiscoveryService;
+  public final String testRunEventsService;
+  public final boolean useTestStorageService;
   public final String shellExecBinderKey;
   public final boolean newRunListenerMode;
+  public final String testsRegEx;
 
   /** Encapsulates a test class and optional method. */
   public static class TestArg {
@@ -164,7 +168,7 @@ public class RunnerArgs {
     this.testPackages = builder.testPackages;
     this.notTestPackages = builder.notTestPackages;
     this.testSize = builder.testSize;
-    this.annotation = builder.annotation;
+    this.annotations = Collections.unmodifiableList(builder.annotations);
     this.notAnnotations = Collections.unmodifiableList(builder.notAnnotations);
     this.testTimeout = builder.testTimeout;
     this.listeners = Collections.unmodifiableList(builder.listeners);
@@ -181,12 +185,17 @@ public class RunnerArgs {
     this.remoteMethod = builder.remoteMethod;
     this.orchestratorService = builder.orchestratorService;
     this.listTestsForOrchestrator = builder.listTestsForOrchestrator;
+    this.testDiscoveryService = builder.testDiscoveryService;
+    this.testRunEventsService = builder.testRunEventsService;
+    this.useTestStorageService = builder.useTestStorageService;
     this.screenCaptureProcessors = Collections.unmodifiableList(builder.screenCaptureProcessors);
     this.targetProcess = builder.targetProcess;
     this.shellExecBinderKey = builder.shellExecBinderKey;
     this.newRunListenerMode = builder.newRunListenerMode;
+    this.testsRegEx = builder.testsRegEx;
   }
 
+  /** Builder for {@link RunnerArgs}. */
   public static class Builder {
     private boolean debug = false;
     private boolean suiteAssignment = false;
@@ -197,8 +206,8 @@ public class RunnerArgs {
     private List<String> testPackages = new ArrayList<>();
     private List<String> notTestPackages = new ArrayList<>();
     private String testSize = null;
-    private String annotation = null;
-    private List<String> notAnnotations = new ArrayList<String>();
+    private final List<String> annotations = new ArrayList<>();
+    private final List<String> notAnnotations = new ArrayList<>();
     private long testTimeout = -1;
     private List<RunListener> listeners = new ArrayList<RunListener>();
     private List<Filter> filters = new ArrayList<>();
@@ -215,10 +224,14 @@ public class RunnerArgs {
     private TestArg remoteMethod = null;
     private String orchestratorService = null;
     private boolean listTestsForOrchestrator = false;
+    private String testDiscoveryService = null;
+    private String testRunEventsService = null;
+    private boolean useTestStorageService = false;
     private String targetProcess = null;
     private List<ScreenCaptureProcessor> screenCaptureProcessors = new ArrayList<>();
     public String shellExecBinderKey;
     private boolean newRunListenerMode = false;
+    private String testsRegEx = null;
 
     /**
      * Populate the arg data from the given Bundle.
@@ -250,7 +263,7 @@ public class RunnerArgs {
       this.runnerBuilderClasses.addAll(
           parseAndLoadClasses(bundle.getString(ARGUMENT_RUNNER_BUILDER), RunnerBuilder.class));
       this.testSize = bundle.getString(ARGUMENT_TEST_SIZE);
-      this.annotation = bundle.getString(ARGUMENT_ANNOTATION);
+      this.annotations.addAll(parseStrings(bundle.getString(ARGUMENT_ANNOTATION)));
       this.notAnnotations.addAll(parseStrings(bundle.getString(ARGUMENT_NOT_ANNOTATION)));
       this.testTimeout = parseUnsignedLong(bundle.getString(ARGUMENT_TIMEOUT), ARGUMENT_TIMEOUT);
       this.numShards = parseUnsignedInt(bundle.get(ARGUMENT_NUM_SHARDS), ARGUMENT_NUM_SHARDS);
@@ -272,6 +285,10 @@ public class RunnerArgs {
       this.orchestratorService = bundle.getString(ARGUMENT_ORCHESTRATOR_SERVICE);
       this.listTestsForOrchestrator =
           parseBoolean(bundle.getString(ARGUMENT_LIST_TESTS_FOR_ORCHESTRATOR));
+      this.testDiscoveryService = bundle.getString(ARGUMENT_ORCHESTRATOR_DISCOVERY_SERVICE);
+      this.testRunEventsService = bundle.getString(ARGUMENT_ORCHESTRATOR_RUN_EVENTS_SERVICE);
+      this.useTestStorageService =
+          parseBoolean(bundle.getString(ARGUMENT_USE_TEST_STORAGE_SERVICE));
       this.targetProcess = bundle.getString(ARGUMENT_TARGET_PROCESS);
       this.screenCaptureProcessors.addAll(
           parseLoadAndInstantiateClasses(
@@ -280,6 +297,7 @@ public class RunnerArgs {
               null));
       this.shellExecBinderKey = bundle.getString(ARGUMENT_SHELL_EXEC_BINDER_KEY);
       this.newRunListenerMode = parseBoolean(bundle.getString(ARGUMENT_RUN_LISTENER_NEW_ORDER));
+      this.testsRegEx = bundle.getString(ARGUMENT_TESTS_REGEX);
       return this;
     }
 
@@ -445,7 +463,7 @@ public class RunnerArgs {
             args.tests.add(parseTestClass(line));
           } else {
             // validate and parse test package
-            args.packages.addAll(parseTestPackages(validatePackage(line)));
+            args.packages.addAll(parseTestPackages(line));
           }
         }
       } catch (FileNotFoundException e) {
@@ -487,24 +505,13 @@ public class RunnerArgs {
      */
     @VisibleForTesting
     static boolean isClassOrMethod(String line) {
-      return line.matches(CLASS_OR_METHOD_REGEX);
-    }
-
-    /**
-     * Throw an exception if the line from test file is not a valid package name. Providing an
-     * invalid class name to this method will also result in an exception.
-     *
-     * @param line string containing an individual package name.
-     * @throws ClassNotFoundException
-     * @return line
-     */
-    @VisibleForTesting
-    static String validatePackage(String line) {
-      if (!line.matches(VALID_PACKAGE_REGEX)) {
-        throw new IllegalArgumentException(
-            String.format("\"%s\" not recognized as valid package name", line));
+      for (int i = 0; i < line.length(); i++) {
+        char c = line.charAt(i);
+        if (c == '#' || Character.isUpperCase(c)) {
+          return true;
+        }
       }
-      return line;
+      return false;
     }
 
     /**

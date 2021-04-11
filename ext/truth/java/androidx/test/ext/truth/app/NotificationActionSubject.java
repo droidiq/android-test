@@ -26,7 +26,7 @@ import com.google.common.truth.Truth;
  *
  * <p>Only supports on Android APIs >= 16
  */
-public class NotificationActionSubject extends Subject<NotificationActionSubject, Action> {
+public class NotificationActionSubject extends Subject {
 
   public static NotificationActionSubject assertThat(Action action) {
     return Truth.assertAbout(notificationActions()).that(action);
@@ -36,11 +36,14 @@ public class NotificationActionSubject extends Subject<NotificationActionSubject
     return NotificationActionSubject::new;
   }
 
+  private final Action actual;
+
   NotificationActionSubject(FailureMetadata failureMetadata, Action subject) {
     super(failureMetadata, subject);
+    this.actual = subject;
   }
 
   public final StringSubject title() {
-    return check("title").that(actual().title != null ? actual().title.toString() : null);
+    return check("title").that(actual.title != null ? actual.title.toString() : null);
   }
 }

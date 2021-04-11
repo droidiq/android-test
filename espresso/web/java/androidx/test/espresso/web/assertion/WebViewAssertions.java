@@ -21,7 +21,7 @@ import static androidx.test.espresso.web.model.Atoms.script;
 import static androidx.test.espresso.web.model.Atoms.transform;
 import static com.google.common.base.Preconditions.checkNotNull;
 
-import android.support.annotation.VisibleForTesting;
+import androidx.annotation.VisibleForTesting;
 import android.webkit.WebView;
 import androidx.test.espresso.remote.annotation.RemoteMsgConstructor;
 import androidx.test.espresso.remote.annotation.RemoteMsgField;
@@ -78,7 +78,9 @@ public final class WebViewAssertions {
   public static WebAssertion<Document> webContent(final Matcher<Document> domMatcher) {
     checkNotNull(domMatcher);
     return webMatches(
-        transform(script("return document.documentElement.outerHTML;"), new DocumentParserAtom()),
+        transform(
+            script("function getHtml() {return document.documentElement.outerHTML;}"),
+            new DocumentParserAtom()),
         domMatcher,
         new WebContentResultDescriber());
   }

@@ -26,6 +26,7 @@ import android.os.IBinder;
 import android.os.RemoteException;
 import android.util.Log;
 import androidx.test.services.speakeasy.SpeakEasyProtocol;
+import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
@@ -38,6 +39,7 @@ public abstract class ToolConnection implements Connection {
   private static final String CONTENT_PROVIDER = "androidx_test_services.speak_easy";
   private static final String SERVICE =
       "androidx.test.services.speakeasy.server.SpeakEasyService";
+  private static final String ATTRIBUTON_SOURCE_CLASS_NAME = "android.content.AttributionSource";
   private static final String TAG = "ToolConnection";
 
   private final Random random = new SecureRandom();
@@ -153,10 +155,12 @@ public abstract class ToolConnection implements Connection {
         try {
           Log.i(TAG, "Getting a content provider holder for: " + contentProvider);
           Object cph;
+          int userId = getCurrentUserOrUserZero();
+          Log.d(TAG, "Starting contentProvider as user: " + userId);
           if (getCPEPostP) {
-            cph = getCPEMethod.invoke(getActivityManager(), contentProvider, 0, token, null);
+            cph = getCPEMethod.invoke(getActivityManager(), contentProvider, userId, token, null);
           } else {
-            cph = getCPEMethod.invoke(getActivityManager(), contentProvider, 0, token);
+            cph = getCPEMethod.invoke(getActivityManager(), contentProvider, userId, token);
           }
           if (null == cph) {
             throw new IllegalStateException(
@@ -188,6 +192,20 @@ public abstract class ToolConnection implements Connection {
           if (call.getParameterTypes().length == 4) {
             Log.i(TAG, "Invoking modern call method");
             call.invoke(provider, null, null, null, b);
+          } else if (call.getParameterTypes().length == 5
+              && ATTRIBUTON_SOURCE_CLASS_NAME.equals(call.getParameterTypes()[0].getName())) {
+            Log.i(TAG, "Invoking Android S call method");
+            Class<?> attrSrcClass = Class.forName(ATTRIBUTON_SOURCE_CLASS_NAME);
+            Constructor<?> attrSrcCons =
+                attrSrcClass.getConstructor(Integer.TYPE, String.class, String.class);
+            Object attrSrcObj = attrSrcCons.newInstance(/* uid */ -1, null, null);
+            call.invoke(provider, attrSrcObj, CONTENT_PROVIDER, null, null, b);
+          } else if (call.getParameterTypes().length == 5) {
+            Log.i(TAG, "Invoking Android Q call method");
+            call.invoke(provider, null, CONTENT_PROVIDER, null, null, b);
+          } else if (call.getParameterTypes().length == 6) {
+            Log.i(TAG, "Invoking Android R call method");
+            call.invoke(provider, null, null, CONTENT_PROVIDER, null, null, b);
           } else {
             Log.i(TAG, "Invoking legacy call method");
             call.invoke(provider, null, null, b);
@@ -202,9 +220,21 @@ public abstract class ToolConnection implements Connection {
           | ClassNotFoundException
           | NoSuchMethodException
           | InvocationTargetException
-          | NoSuchFieldException ex) {
+          | NoSuchFieldException
+          | InstantiationException ex) {
         Log.e(TAG, "Connecting to content providers has failed!", ex);
         throw new RuntimeException(ex);
+      }
+    }
+
+    private static int getCurrentUserOrUserZero() {
+      try {
+        Log.d(TAG, "looking up getCurrentUser");
+        Method method = ActivityManager.class.getMethod("getCurrentUser");
+        return (int) method.invoke(null);
+      } catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException e) {
+        Log.e(TAG, "looking up getCurrentUser error ", e);
+        return 0;
       }
     }
   }

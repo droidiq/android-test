@@ -21,9 +21,10 @@ import static com.google.common.base.Preconditions.checkNotNull;
 import android.os.Parcel;
 import android.os.Parcelable;
 import android.os.Parcelable.Creator;
-import android.support.annotation.NonNull;
+import androidx.annotation.NonNull;
 import com.google.protobuf.ByteString;
 import java.lang.reflect.Field;
+import java.util.Locale;
 
 /** Converts a {@link ByteString} into a {@link Parcelable}. */
 final class ByteStringToParcelableConverter implements Converter<ByteString, Parcelable> {
@@ -59,11 +60,15 @@ final class ByteStringToParcelableConverter implements Converter<ByteString, Par
       fromParcel = parcelableClass.cast(creator.createFromParcel(parcel));
     } catch (NoSuchFieldException nsfe) {
       throw new RemoteProtocolException(
-          String.format("Cannot find CREATOR field for Parcelable %s", parcelableClass.getName()),
+          String.format(
+              Locale.ROOT,
+              "Cannot find CREATOR field for Parcelable %s",
+              parcelableClass.getName()),
           nsfe);
     } catch (IllegalAccessException iae) {
       throw new RemoteProtocolException(
           String.format(
+              Locale.ROOT,
               "Cannot create instance of %s. CREATOR field is inaccessible",
               parcelableClass.getName()),
           iae);

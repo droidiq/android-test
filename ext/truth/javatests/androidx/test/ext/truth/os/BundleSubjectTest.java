@@ -20,8 +20,9 @@ import static androidx.test.ext.truth.os.BundleSubject.assertThat;
 import android.accounts.Account;
 import android.content.Intent;
 import android.os.Bundle;
+import androidx.test.ext.junit.runners.AndroidJUnit4;
 import androidx.test.ext.truth.content.IntentSubject;
-import androidx.test.runner.AndroidJUnit4;
+import com.google.common.collect.Lists;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
@@ -65,4 +66,49 @@ public class BundleSubjectTest {
     assertThat(bundle).integer("foo").isEqualTo(1);
   }
 
+  @Test
+  public void longInt() {
+    Bundle bundle = new Bundle();
+    bundle.putLong("foo", 1000000000000L);
+    assertThat(bundle).longInt("foo").isEqualTo(1000000000000L);
+  }
+
+  @Test
+  public void bool() {
+    Bundle bundle = new Bundle();
+    bundle.putBoolean("foo", true);
+    assertThat(bundle).bool("foo").isTrue();
+  }
+
+  @Test
+  public void parcelable() {
+    Bundle bundle = new Bundle();
+    Account account = new Account("bar", "type");
+    bundle.putParcelable("foo", account);
+    assertThat(bundle).<Account>parcelable("foo").isEqualTo(account);
+  }
+
+  @Test
+  public void parcelableAsType() {
+    Bundle bundle = new Bundle();
+    Intent intent = new Intent("bar");
+    bundle.putParcelable("foo", intent);
+    assertThat(bundle).parcelableAsType("foo", IntentSubject.intents()).hasAction("bar");
+  }
+
+  @Test
+  public void stringArrayList() {
+    Bundle bundle = new Bundle();
+    bundle.putStringArrayList("foo", Lists.newArrayList("bar", "baz"));
+    assertThat(bundle).stringArrayList("foo").containsExactly("bar", "baz").inOrder();
+  }
+
+  @Test
+  public void parcelableArrayList() {
+    Bundle bundle = new Bundle();
+    Intent intent1 = new Intent("bar");
+    Intent intent2 = new Intent("baz");
+    bundle.putParcelableArrayList("foo", Lists.newArrayList(intent1, intent2));
+    assertThat(bundle).parcelableArrayList("foo").containsExactly(intent1, intent2).inOrder();
+  }
 }

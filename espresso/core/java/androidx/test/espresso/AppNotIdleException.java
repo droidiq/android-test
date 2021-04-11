@@ -19,8 +19,10 @@ package androidx.test.espresso;
 import static com.google.common.base.Preconditions.checkState;
 
 import android.os.Looper;
+import androidx.test.internal.platform.util.TestOutputEmitter;
 import com.google.common.base.Joiner;
 import java.util.List;
+import java.util.Locale;
 
 /**
  * An exception which indicates that the App has not become idle even after the specified duration.
@@ -29,7 +31,7 @@ public final class AppNotIdleException extends RuntimeException implements Espre
 
   private AppNotIdleException(String description) {
     super(description);
-
+    TestOutputEmitter.dumpThreadStates("ThreadState-AppNotIdleException.txt");
   }
 
   /**
@@ -50,9 +52,12 @@ public final class AppNotIdleException extends RuntimeException implements Espre
     checkState(Looper.myLooper() == Looper.getMainLooper());
     String errorMessage =
         String.format(
+            Locale.ROOT,
             "App not idle within timeout of %s seconds even"
                 + "after trying for %s iterations. The following Idle Conditions failed %s",
-            seconds, loopCount, Joiner.on(",").join(idleConditions));
+            seconds,
+            loopCount,
+            Joiner.on(",").join(idleConditions));
     return new AppNotIdleException(errorMessage);
   }
 
@@ -69,8 +74,10 @@ public final class AppNotIdleException extends RuntimeException implements Espre
   public static AppNotIdleException create(List<String> idleConditions, String message) {
     String errorMessage =
         String.format(
+            Locale.ROOT,
             "%s The following Idle Conditions failed %s.",
-            message, Joiner.on(",").join(idleConditions));
+            message,
+            Joiner.on(",").join(idleConditions));
     return new AppNotIdleException(errorMessage);
   }
 }

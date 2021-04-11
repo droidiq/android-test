@@ -20,8 +20,8 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
 import static org.junit.runner.JUnitCore.runClasses;
 
+import androidx.test.ext.junit.runners.AndroidJUnit4;
 import androidx.test.filters.SmallTest;
-import androidx.test.runner.AndroidJUnit4;
 import java.util.Properties;
 import org.junit.After;
 import org.junit.Before;
@@ -46,9 +46,9 @@ public class PortForwardingRuleTest {
             .withProxyHost(proxyHost)
             .withProperties(properties)
             .build();
-    assertEquals(portForwardingRule.mProxyHost, proxyHost);
-    assertEquals(portForwardingRule.mProxyPort, proxyPort);
-    assertEquals(portForwardingRule.mProp, properties);
+    assertEquals(portForwardingRule.proxyHost, proxyHost);
+    assertEquals(portForwardingRule.proxyPort, proxyPort);
+    assertEquals(portForwardingRule.prop, properties);
   }
 
   public static class ExecutionOrderTest {
@@ -58,7 +58,7 @@ public class PortForwardingRuleTest {
     private static StringBuilder log = new StringBuilder();
 
     @Rule
-    public PortForwardingRule mPortForwardingRule =
+    public PortForwardingRule portForwardingRule =
         new PortForwardingRule(
             PortForwardingRule.DEFAULT_PROXY_HOST,
             PortForwardingRule.DEFAULT_PROXY_PORT,
@@ -127,26 +127,26 @@ public class PortForwardingRuleTest {
         TEST_PROPERTIES.getProperty(PortForwardingRule.HTTPS_PORT_PROPERTY);
 
     @Rule
-    public PortForwardingRule mPortForwardingRule =
+    public PortForwardingRule portForwardingRule =
         new PortForwardingRule(SET_PROXY_HOST, SET_PROXY_PORT, TEST_PROPERTIES) {
           @Override
           protected void beforePortForwarding() {
-            verifyOriginalProperties(mProp);
+            verifyOriginalProperties(prop);
           }
 
           @Override
           protected void afterPortForwarding() {
-            verifySetProperties(mProp);
+            verifySetProperties(prop);
           }
 
           @Override
           protected void beforeRestoreForwarding() {
-            verifySetProperties(mProp);
+            verifySetProperties(prop);
           }
 
           @Override
           protected void afterRestoreForwarding() {
-            verifyOriginalProperties(mProp);
+            verifyOriginalProperties(prop);
           }
         };
 
